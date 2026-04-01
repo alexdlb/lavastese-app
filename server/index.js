@@ -1345,11 +1345,11 @@ async function start() {
 const clientDist = path.join(__dirname, "../client/dist");
 if (fs.existsSync(clientDist)) {
   app.use(express.static(clientDist));
-  app.get("*", (req, res) => {
-    if (!req.path.startsWith("/api") && !req.path.startsWith("/uploads")) {
-      res.sendFile(path.join(clientDist, "index.html"));
-    }
-  });
+  app.get("/{*path}", (req, res) => {
+  if (!req.path.startsWith("/api") && !req.path.startsWith("/uploads")) {
+    res.sendFile(path.join(clientDist, "index.html"));
+  }
+});
 }
 
 start();
