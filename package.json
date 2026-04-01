@@ -2,7 +2,7 @@
   "name": "lavastese-app",
   "version": "1.0.0",
   "scripts": {
-    "build": "cd client && npm install && npm run build",
+    "build": "cd client && npm install && npm run build -- --force",
     "start": "node server/index.js"
   }
 }
