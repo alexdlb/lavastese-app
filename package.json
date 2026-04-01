@@ -1,0 +1,19 @@
+{
+  "name": "lavastese-app",
+  "version": "1.0.0",
+  "main": "index.js",
+  "dependencies": {
+    "react-router-dom": "^7.13.0"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "type": "commonjs"
+}
