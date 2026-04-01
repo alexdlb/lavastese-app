@@ -1340,7 +1340,7 @@ async function start() {
 }
 
 /* =========================
-   SERVE FRONTEND (produzione)
+   SERVE FRONTEND
 ========================= */
 const clientDist = path.join(__dirname, "../client/dist");
 if (fs.existsSync(clientDist)) {
