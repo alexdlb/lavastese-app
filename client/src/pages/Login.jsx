@@ -83,7 +83,7 @@ export default function Login() {
             color: "var(--ink)",
             letterSpacing: "-0.01em",
           }}>
-            Lavastese
+            La Vastese
           </div>
           <div style={{
             fontSize: "0.8rem",
