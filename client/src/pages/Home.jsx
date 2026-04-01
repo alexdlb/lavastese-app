@@ -78,6 +78,8 @@ export default function Home() {
       }
     }
     loadOrders();
+    const interval = setInterval(loadOrders, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const now = new Date();

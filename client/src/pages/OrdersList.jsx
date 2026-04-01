@@ -41,7 +41,11 @@ export default function OrdersList() {
     }
   }
 
-  useEffect(() => { loadOrders(); }, []);
+  useEffect(() => {
+    loadOrders();
+    const interval = setInterval(loadOrders, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   const filtered = orders.filter(o => {
     const q = search.toLowerCase();
