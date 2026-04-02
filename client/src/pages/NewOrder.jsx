@@ -303,21 +303,20 @@ function ProductAutocomplete({ products, value, productName, onChange }) {
         onChange={handleInput}
         onFocus={() => setOpen(true)}
         placeholder="Cerca prodotto..."
-        style={{ width: "100%", boxSizing: "border-box" }}
         autoComplete="off"
       />
       {open && search.trim().length > 0 && filtered.length > 0 && (
         <div style={{
           position: "absolute",
-          top: "100%",
+          top: "calc(100% + 4px)",
           left: 0,
           right: 0,
-          background: "#fff",
-          border: "1px solid #d1d5db",
-          borderRadius: 8,
-          boxShadow: "0 4px 12px rgba(0,0,0,0.12)",
-          zIndex: 100,
-          maxHeight: 220,
+          background: "var(--surface)",
+          border: "1.5px solid var(--border)",
+          borderRadius: "var(--r-md)",
+          boxShadow: "var(--shadow-lg)",
+          zIndex: 500,
+          maxHeight: 260,
           overflowY: "auto",
         }}>
           {filtered.map(p => (
@@ -325,17 +324,18 @@ function ProductAutocomplete({ products, value, productName, onChange }) {
               key={p.id}
               onMouseDown={() => select(p)}
               style={{
-                padding: "8px 12px",
+                padding: "12px 16px",
                 cursor: "pointer",
-                borderBottom: "1px solid #f3f4f6",
-                background: String(p.id) === String(value) ? "#eef2ff" : "transparent",
+                borderBottom: "1px solid var(--border)",
+                background: String(p.id) === String(value) ? "var(--accent-light)" : "transparent",
+                transition: "background 0.1s",
               }}
-              onMouseEnter={e => e.currentTarget.style.background = "#f9fafb"}
-              onMouseLeave={e => e.currentTarget.style.background = String(p.id) === String(value) ? "#eef2ff" : "transparent"}
+              onMouseEnter={e => e.currentTarget.style.background = "var(--accent-light)"}
+              onMouseLeave={e => e.currentTarget.style.background = String(p.id) === String(value) ? "var(--accent-light)" : "transparent"}
             >
-              <div style={{ fontSize: 13, fontWeight: 600 }}>{p.name}</div>
+              <div style={{ fontSize: "0.9rem", fontWeight: 600, color: "var(--ink)" }}>{p.name}</div>
               {(p.categoryName || p.category) && (
-                <div style={{ fontSize: 11, color: "#6b7280" }}>
+                <div style={{ fontSize: "0.76rem", color: "var(--ink-3)", marginTop: 2 }}>
                   {p.categoryName || p.category}
                 </div>
               )}
@@ -370,6 +370,16 @@ export default function NewOrder() {
   const [items, setItems] = useState([emptyItem()]);
   const [notes, setNotes] = useState("");
   const [invoiceRequested, setInvoiceRequested] = useState(false);
+  const [invoiceData, setInvoiceData] = useState({
+    ragioneSociale: "",
+    partitaIva: "",
+    via: "",
+    citta: "",
+    provincia: "",
+    cap: "",
+    pec: "",
+    sdi: "",
+  });
 
   const [photoFile, setPhotoFile] = useState(null);
   const [photoUrl, setPhotoUrl] = useState("");
@@ -586,6 +596,7 @@ export default function NewOrder() {
         items: normalizedItems,
         notes,
         invoiceRequested,
+        invoiceData: invoiceRequested ? invoiceData : null,
         signature: currentSignatureDataUrl,
         signatureDataUrl: currentSignatureDataUrl,
         signatureUrl,
@@ -621,29 +632,22 @@ export default function NewOrder() {
 
       {error && (
         <div
-          style={{
-            background: "#ffe9e9",
-            border: "1px solid #ffb3b3",
-            padding: 10,
-            borderRadius: 8,
-            marginBottom: 12,
-          }}
+          className="error-box" style={{ marginBottom: "var(--gap)" }}
         >
           {error}
         </div>
       )}
 
       {/* CLIENTE */}
-      <section style={{ border: "1px solid #ddd", borderRadius: 8, padding: 12 }}>
-        <h3 style={{ marginTop: 0 }}>Cliente</h3>
+      <section className="card">
+        <h3 style={{ marginTop: 0, fontFamily: "var(--font-title)", fontSize: "1.2rem" }}>Cliente</h3>
 
-        <div style={{ display: "grid", gap: 10, gridTemplateColumns: "1fr 1fr 1fr" }}>
+        <div style={{ display: "grid", gap: "var(--gap)", gridTemplateColumns: "1fr 1fr 1fr" }}>
           <label>
             Nome*
             <input
               value={customer.name}
               onChange={(e) => setCustomer({ ...customer, name: e.target.value })}
-              style={{ width: "100%" }}
             />
           </label>
 
@@ -652,7 +656,6 @@ export default function NewOrder() {
             <input
               value={customer.phone}
               onChange={(e) => setCustomer({ ...customer, phone: e.target.value })}
-              style={{ width: "100%" }}
             />
           </label>
 
@@ -661,16 +664,15 @@ export default function NewOrder() {
             <input
               value={customer.email}
               onChange={(e) => setCustomer({ ...customer, email: e.target.value })}
-              style={{ width: "100%" }}
             />
           </label>
         </div>
       </section>
 
       {/* FATTURA */}
-      <section style={{ border: "1px solid #ddd", borderRadius: 8, padding: 12, marginTop: 12 }}>
-        <h3 style={{ marginTop: 0 }}>Fattura</h3>
-        <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
+      <section className="card" style={{ marginTop: "var(--gap)" }}>
+        <h3 style={{ marginTop: 0, fontFamily: "var(--font-title)", fontSize: "1.2rem" }}>Fattura</h3>
+        <label style={{ display: "flex", gap: 10, alignItems: "center", textTransform: "none", letterSpacing: 0, fontSize: "0.95rem", fontWeight: 500, color: "var(--ink-2)" }}>
           <input
             type="checkbox"
             checked={invoiceRequested}
@@ -678,19 +680,104 @@ export default function NewOrder() {
           />
           Il cliente richiede fattura
         </label>
+
+        {invoiceRequested && (
+          <div style={{ marginTop: "var(--gap)", display: "grid", gap: "var(--gap)" }}>
+            <div style={{ display: "grid", gap: "var(--gap)", gridTemplateColumns: "1fr 1fr" }}>
+              <label>
+                Ragione Sociale
+                <input
+                  type="text"
+                  value={invoiceData.ragioneSociale}
+                  onChange={e => setInvoiceData(p => ({ ...p, ragioneSociale: e.target.value }))}
+                  placeholder="Es. Mario Rossi S.r.l."
+                />
+              </label>
+              <label>
+                Partita IVA
+                <input
+                  type="text"
+                  value={invoiceData.partitaIva}
+                  onChange={e => setInvoiceData(p => ({ ...p, partitaIva: e.target.value }))}
+                  placeholder="Es. IT12345678901"
+                />
+              </label>
+            </div>
+            <div style={{ display: "grid", gap: "var(--gap)", gridTemplateColumns: "2fr 1fr 1fr" }}>
+              <label>
+                Via / Indirizzo
+                <input
+                  type="text"
+                  value={invoiceData.via}
+                  onChange={e => setInvoiceData(p => ({ ...p, via: e.target.value }))}
+                  placeholder="Es. Via Roma 1"
+                />
+              </label>
+              <label>
+                Città
+                <input
+                  type="text"
+                  value={invoiceData.citta}
+                  onChange={e => setInvoiceData(p => ({ ...p, citta: e.target.value }))}
+                  placeholder="Es. Milano"
+                />
+              </label>
+              <label>
+                Provincia
+                <input
+                  type="text"
+                  value={invoiceData.provincia}
+                  onChange={e => setInvoiceData(p => ({ ...p, provincia: e.target.value }))}
+                  placeholder="Es. MI"
+                  maxLength={2}
+                />
+              </label>
+            </div>
+            <div style={{ display: "grid", gap: "var(--gap)", gridTemplateColumns: "1fr 1fr 1fr" }}>
+              <label>
+                CAP
+                <input
+                  type="text"
+                  value={invoiceData.cap}
+                  onChange={e => setInvoiceData(p => ({ ...p, cap: e.target.value }))}
+                  placeholder="Es. 20100"
+                  maxLength={5}
+                />
+              </label>
+              <label>
+                PEC
+                <input
+                  type="text"
+                  value={invoiceData.pec}
+                  onChange={e => setInvoiceData(p => ({ ...p, pec: e.target.value }))}
+                  placeholder="Es. mario@pec.it"
+                />
+              </label>
+              <label>
+                Codice SDI
+                <input
+                  type="text"
+                  value={invoiceData.sdi}
+                  onChange={e => setInvoiceData(p => ({ ...p, sdi: e.target.value }))}
+                  placeholder="Es. ABCDE12"
+                  maxLength={7}
+                />
+              </label>
+            </div>
+          </div>
+        )}
       </section>
 
       {/* CONSEGNA */}
-      <section style={{ border: "1px solid #ddd", borderRadius: 8, padding: 12, marginTop: 12 }}>
-        <h3 style={{ marginTop: 0 }}>Consegna / Ritiro</h3>
+      <section className="card" style={{ marginTop: "var(--gap)" }}>
+        <h3 style={{ marginTop: 0, fontFamily: "var(--font-title)", fontSize: "1.2rem" }}>Consegna / Ritiro</h3>
 
-        <div style={{ display: "grid", gap: 10, gridTemplateColumns: "200px 1fr", marginBottom: 16 }}>
+        <div style={{ display: "grid", gap: "var(--gap)", gridTemplateColumns: "200px 1fr", marginBottom: 16 }}>
           <label>
             Tipo*
             <select
               value={fulfillment.type}
               onChange={(e) => setFulfillment({ ...fulfillment, type: e.target.value })}
-              style={{ width: "100%" }}
             >
               <option value="pickup">Ritiro</option>
               <option value="delivery">Consegna</option>
@@ -720,7 +807,6 @@ export default function NewOrder() {
                     deliveryFeeCents: Number.isFinite(cents) ? cents : null,
                   });
                 }}
-                style={{ width: "100%" }}
               />
             </label>
           )}
@@ -755,7 +841,6 @@ export default function NewOrder() {
                     address: { ...fulfillment.address, line1: e.target.value },
                   })
                 }
-                style={{ width: "100%" }}
               />
             </label>
 
@@ -769,7 +854,6 @@ export default function NewOrder() {
                     address: { ...fulfillment.address, city: e.target.value },
                   })
                 }
-                style={{ width: "100%" }}
               />
             </label>
 
@@ -783,7 +867,6 @@ export default function NewOrder() {
                     address: { ...fulfillment.address, notes: e.target.value },
                   })
                 }
-                style={{ width: "100%" }}
               />
             </label>
           </div>
@@ -791,19 +874,19 @@ export default function NewOrder() {
       </section>
 
       {/* PRODOTTI */}
-      <section style={{ border: "1px solid #ddd", borderRadius: 8, padding: 12, marginTop: 12 }}>
-        <h3 style={{ marginTop: 0 }}>Prodotti</h3>
+      <section className="card" style={{ marginTop: "var(--gap)" }}>
+        <h3 style={{ marginTop: 0, fontFamily: "var(--font-title)", fontSize: "1.2rem" }}>Prodotti</h3>
 
-        <div style={{ display: "grid", gap: 10 }}>
+        <div style={{ display: "grid", gap: "var(--gap)" }}>
           {items.map((it, idx) => {
             const p = productById.get(String(it.productId));
             const allowPersons = p?.allowPersons ?? true;
             const allowWeight = p?.allowWeight ?? true;
 
             return (
-              <div key={idx} style={{ border: "1px dashed #ccc", borderRadius: 8, padding: 10 }}>
+              <div key={idx} style={{ border: "1.5px dashed var(--border-strong)", borderRadius: "var(--r-md)", padding: 16, background: "var(--surface-2)" }}>
                 {/* Riga 1: Prodotto + Variante */}
-                <div style={{ display: "grid", gap: 10, gridTemplateColumns: "2fr 1.5fr" }}>
+                <div style={{ display: "grid", gap: "var(--gap)", gridTemplateColumns: "2fr 1.5fr" }}>
                   <label>
                     Prodotto*
                     <ProductAutocomplete
@@ -830,7 +913,7 @@ export default function NewOrder() {
                       return (
                         <label style={{ opacity: 0.4 }}>
                           Variante
-                          <select disabled style={{ width: "100%" }}>
+                          <select disabled>
                             <option>Nessuna variante</option>
                           </select>
                         </label>
@@ -848,7 +931,6 @@ export default function NewOrder() {
                               subProductName: sub?.name || "",
                             });
                           }}
-                          style={{ width: "100%" }}
                         >
                           <option value="">Seleziona variante...</option>
                           {subs.map(s => (
@@ -863,7 +945,7 @@ export default function NewOrder() {
                 </div>
 
                 {/* Riga 2: Persone, Peso, Allergeni */}
-                <div style={{ display: "grid", gap: 10, gridTemplateColumns: "1fr 1fr 1.5fr", marginTop: 10 }}>
+                <div style={{ display: "grid", gap: "var(--gap)", gridTemplateColumns: "1fr 1fr 1.5fr", marginTop: "var(--gap)" }}>
                   <label>
                     Persone
                     <input
@@ -873,7 +955,6 @@ export default function NewOrder() {
                       disabled={!allowPersons}
                       value={it.persons}
                       onChange={(e) => updateItem(idx, { persons: e.target.value })}
-                      style={{ width: "100%" }}
                     />
                   </label>
 
@@ -886,7 +967,6 @@ export default function NewOrder() {
                       disabled={!allowWeight}
                       value={it.weightKg}
                       onChange={(e) => updateItem(idx, { weightKg: e.target.value })}
-                      style={{ width: "100%" }}
                     />
                   </label>
 
@@ -895,7 +975,6 @@ export default function NewOrder() {
                     <select
                       value={it.allergenOption || "standard"}
                       onChange={(e) => updateItem(idx, { allergenOption: e.target.value })}
-                      style={{ width: "100%" }}
                     >
                       <option value="standard">Standard</option>
                       <option value="no_glutine">No glutine</option>
@@ -910,7 +989,6 @@ export default function NewOrder() {
                   <input
                     value={it.notes}
                     onChange={(e) => updateItem(idx, { notes: e.target.value })}
-                    style={{ width: "100%" }}
                   />
                 </label>
 
@@ -929,14 +1007,14 @@ export default function NewOrder() {
           })}
         </div>
 
-        <button type="button" onClick={addRow} style={{ marginTop: 10 }}>
+        <button type="button" onClick={addRow} style={{ marginTop: "var(--gap)" }}>
           + Aggiungi prodotto
         </button>
       </section>
 
       {/* FIRMA E FOTO */}
-      <section style={{ border: "1px solid #ddd", borderRadius: 8, padding: 12, marginTop: 12 }}>
-        <h3 style={{ marginTop: 0 }}>Firma e foto</h3>
+      <section className="card" style={{ marginTop: "var(--gap)" }}>
+        <h3 style={{ marginTop: 0, fontFamily: "var(--font-title)", fontSize: "1.2rem" }}>Firma e foto</h3>
 
         <div style={{ display: "grid", gap: 12 }}>
           <div>
@@ -944,8 +1022,8 @@ export default function NewOrder() {
 
             <div
               style={{
-                border: "1px solid #d1d5db",
-                borderRadius: 10,
+                border: "1.5px solid var(--border)",
+                borderRadius: "var(--r-md)",
                 overflow: "hidden",
                 background: "#fff",
                 width: "100%",
@@ -1018,18 +1096,17 @@ export default function NewOrder() {
       </section>
 
       {/* NOTE */}
-      <section style={{ border: "1px solid #ddd", borderRadius: 8, padding: 12, marginTop: 12 }}>
-        <h3 style={{ marginTop: 0 }}>Note ordine</h3>
+      <section className="card" style={{ marginTop: "var(--gap)" }}>
+        <h3 style={{ marginTop: 0, fontFamily: "var(--font-title)", fontSize: "1.2rem" }}>Note ordine</h3>
         <textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           rows={3}
-          style={{ width: "100%" }}
         />
       </section>
 
       <div style={{ marginTop: 12, display: "flex", gap: 10 }}>
-        <button type="button" onClick={save} disabled={saving}>
+        <button type="button" className="btn-primary btn-lg" onClick={save} disabled={saving}>
           {saving ? "Salvataggio..." : "Salva ordine"}
         </button>
       </div>

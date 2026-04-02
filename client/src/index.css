@@ -133,6 +133,7 @@ input[type="datetime-local"],
 input[type="date"],
 input[type="time"],
 input[type="file"],
+input:not([type]),
 select,
 textarea {
   width: 100%;
