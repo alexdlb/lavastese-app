@@ -1,3 +1,4 @@
+import { apiFetch } from "../utils/auth.js";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -75,7 +76,7 @@ function OrderCard({ order, onStatusChange, onNavigate }) {
     setSaving(true);
     try {
       const updated = { ...order, productionStatus: newStatus };
-      const res = await fetch(`/api/orders/${order.id}`, {
+      const res = await apiFetch(`/api/orders/${order.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updated),
@@ -288,7 +289,7 @@ export default function WeeklyAgenda() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/orders");
+      const res = await apiFetch("/api/orders");
       const data = await readJsonSafe(res);
       if (!res.ok) throw new Error(data?.error || "Errore caricamento ordini");
       setOrders(Array.isArray(data) ? data : []);
