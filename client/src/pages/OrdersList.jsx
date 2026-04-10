@@ -25,6 +25,10 @@ export default function OrdersList() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo]     = useState("");
+  const [activeFrom, setActiveFrom] = useState("");
+  const [activeTo, setActiveTo]     = useState("");
 
   async function loadOrders() {
     setLoading(true);
@@ -49,9 +53,15 @@ export default function OrdersList() {
 
   const filtered = orders.filter(o => {
     const q = search.toLowerCase();
-    return !q ||
+    const matchSearch = !q ||
       (o.customer?.name || "").toLowerCase().includes(q) ||
       (o.customer?.phone || "").toLowerCase().includes(q);
+
+    const dt = o.fulfillment?.deliveryDateTime || "";
+    const matchFrom = !activeFrom || dt >= activeFrom;
+    const matchTo   = !activeTo  || dt <= activeTo + "T23:59:59";
+
+    return matchSearch && matchFrom && matchTo;
   });
 
   return (
@@ -62,7 +72,7 @@ export default function OrdersList() {
         <div>
           <h1 style={{ margin: 0 }}>Ordini</h1>
           <p style={{ marginTop: 6, color: "var(--ink-3)" }}>
-            {loading ? "Caricamento..." : `${orders.length} ordini totali`}
+            {loading ? "Caricamento..." : (activeFrom || activeTo) ? `${filtered.length} di ${orders.length} ordini` : `${orders.length} ordini totali`}
           </p>
         </div>
         <button className="btn-primary" onClick={() => navigate("/nuovo-ordine")}>
@@ -83,6 +93,66 @@ export default function OrdersList() {
           onChange={e => setSearch(e.target.value)}
           style={{ paddingLeft: 42 }}
         />
+      </div>
+
+      {/* FILTRO DATA */}
+      <div style={{
+        display: "flex",
+        gap: "var(--gap)",
+        alignItems: "flex-end",
+        flexWrap: "wrap",
+        padding: "18px 20px",
+        background: "var(--surface)",
+        border: "1.5px solid var(--border)",
+        borderRadius: "var(--r-lg)",
+        boxShadow: "var(--shadow-sm)",
+      }}>
+        <label style={{ flex: 1, minWidth: 160 }}>
+          Dal
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={e => setDateFrom(e.target.value)}
+          />
+        </label>
+        <label style={{ flex: 1, minWidth: 160 }}>
+          Al
+          <input
+            type="date"
+            value={dateTo}
+            onChange={e => setDateTo(e.target.value)}
+          />
+        </label>
+        <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+          <button
+            className="btn-primary"
+            onClick={() => { setActiveFrom(dateFrom); setActiveTo(dateTo); }}
+            disabled={!dateFrom && !dateTo}
+          >
+            Cerca
+          </button>
+          {(activeFrom || activeTo) && (
+            <button
+              onClick={() => {
+                setDateFrom(""); setDateTo("");
+                setActiveFrom(""); setActiveTo("");
+              }}
+            >
+              Azzera
+            </button>
+          )}
+        </div>
+        {(activeFrom || activeTo) && (
+          <div style={{
+            width: "100%",
+            fontSize: "0.82rem",
+            color: "var(--accent)",
+            fontWeight: 600,
+          }}>
+            Filtro attivo: {activeFrom ? new Date(activeFrom).toLocaleDateString("it-IT") : "inizio"} — {activeTo ? new Date(activeTo).toLocaleDateString("it-IT") : "oggi"}
+            {" "}({filtered.length} {filtered.length === 1 ? "ordine" : "ordini"})
+          </div>
+        )}
       </div>
 
       {/* LISTA */}
