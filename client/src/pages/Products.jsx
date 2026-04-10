@@ -253,6 +253,15 @@ export default function Products() {
   const [newProdCatId, setNewProdCatId]       = useState("");
   const [newSubName, setNewSubName]           = useState("");
 
+  // Varianti globali
+  const [variants, setVariants]               = useState([]);
+  const [varSearch, setVarSearch]             = useState("");
+  const [varSuggestions, setVarSuggestions]   = useState([]);
+  const [loadingVar, setLoadingVar]           = useState(false);
+  const [selectedVar, setSelectedVar]         = useState(null);
+  const [editVarName, setEditVarName]         = useState("");
+  const [newVarName, setNewVarName]           = useState("");
+
   const [toast, setToast]                     = useState("");
 
   function showToast(msg) {
@@ -265,16 +274,19 @@ export default function Products() {
   async function loadBase() {
     setLoadingBase(true);
     try {
-      const [catRes, prodRes] = await Promise.all([
+      const [catRes, prodRes, varRes] = await Promise.all([
         apiFetch("/api/categories?limit=200"),
         apiFetch("/api/products?limit=200"),
+        apiFetch("/api/variants?limit=200"),
       ]);
       const cats  = await readJsonSafe(catRes);
       const prods = await readJsonSafe(prodRes);
+      const vars  = await readJsonSafe(varRes);
       if (!catRes.ok)  throw new Error(cats?.error  || "Errore categorie");
       if (!prodRes.ok) throw new Error(prods?.error || "Errore prodotti");
       setCategories(Array.isArray(cats) ? cats : []);
       setProductOptions(Array.isArray(prods) ? prods : []);
+      setVariants(Array.isArray(vars) ? vars : []);
     } catch (err) {
       console.error(err);
       alert(err.message);
@@ -322,6 +334,78 @@ export default function Products() {
     }, 300);
     return () => { ctrl.abort(); clearTimeout(t); };
   }, [prodSearch, catFilter]);
+
+  /* Suggerimenti varianti */
+  useEffect(() => {
+    const v = varSearch.trim();
+    if (!v) { setVarSuggestions([]); setLoadingVar(false); return; }
+    setVarSuggestions([]); setLoadingVar(true);
+    const ctrl = new AbortController();
+    const t = setTimeout(async () => {
+      try {
+        const res = await apiFetch(`/api/variants?search=${encodeURIComponent(v)}&limit=10`, { signal: ctrl.signal });
+        const data = await readJsonSafe(res);
+        setVarSuggestions(Array.isArray(data) ? data : []);
+      } catch (e) { if (e.name !== "AbortError") console.error(e); }
+      finally { setLoadingVar(false); }
+    }, 300);
+    return () => { ctrl.abort(); clearTimeout(t); };
+  }, [varSearch]);
+
+  /* ---- VARIANTI ---- */
+  function selectVar(v) {
+    setSelectedVar(v);
+    setEditVarName(v.name || "");
+    setVarSearch(v.name || "");
+    setVarSuggestions([]);
+    setSelectedCat(null);
+    setSelectedProd(null);
+  }
+
+  function closeVar() {
+    setSelectedVar(null);
+    setEditVarName("");
+    setVarSearch("");
+  }
+
+  async function createVar() {
+    const name = newVarName.trim();
+    if (!name) return;
+    const res = await apiFetch("/api/variants", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    const data = await readJsonSafe(res);
+    if (!res.ok) { alert(data?.error || "Errore"); return; }
+    setNewVarName("");
+    await loadBase();
+    showToast("Variante creata");
+  }
+
+  async function saveVar() {
+    if (!selectedVar) return;
+    const name = editVarName.trim();
+    if (!name) return;
+    const res = await apiFetch(`/api/variants/${selectedVar.id}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    const data = await readJsonSafe(res);
+    if (!res.ok) { alert(data?.error || "Errore"); return; }
+    await loadBase();
+    setSelectedVar({ ...selectedVar, name });
+    showToast("Variante salvata");
+  }
+
+  async function deleteVar() {
+    if (!selectedVar || !confirm("Eliminare la variante?")) return;
+    const res = await apiFetch(`/api/variants/${selectedVar.id}`, { method: "DELETE" });
+    const data = await readJsonSafe(res);
+    if (!res.ok) { alert(data?.error || "Errore"); return; }
+    await loadBase();
+    closeVar();
+    showToast("Variante eliminata");
+  }
 
   async function refreshProd(id) {
     const res = await apiFetch("/api/products?limit=200");
@@ -476,7 +560,7 @@ export default function Products() {
     showToast("Sottoprodotto eliminato");
   }
 
-  const showEditor = !!(selectedCat || selectedProd);
+  const showEditor = !!(selectedCat || selectedProd || selectedVar);
   const prodFiltered = productOptions.filter(p => !catFilter || String(p.categoryId) === String(catFilter));
 
   return (
@@ -596,10 +680,48 @@ export default function Products() {
         </div>
       </div>
 
+      {/* Nuova variante */}
+      <div style={{
+        background: "#fffbeb",
+        border: "1.5px solid #fde68a",
+        borderRadius: "var(--r-xl)",
+        padding: "22px 24px",
+        boxShadow: "var(--shadow-sm)",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+          <span style={{ fontSize: "1.5rem" }}>&#x1F4DD;</span>
+          <h2 style={{ margin: 0, fontSize: "1.15rem", color: "#92400e" }}>Nuova variante</h2>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <input
+            type="text"
+            placeholder="Es. Pan di Spagna, Pasta Sfoglia..."
+            value={newVarName}
+            onChange={e => setNewVarName(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && createVar()}
+            style={{ flex: 1, borderColor: "#fde68a" }}
+          />
+          <button
+            onClick={createVar}
+            disabled={!newVarName.trim()}
+            style={{
+              flexShrink: 0,
+              background: "#d97706", color: "#fff",
+              border: "none", borderRadius: "var(--r-sm)",
+              padding: "0 20px", fontWeight: 700,
+              minHeight: "var(--touch)", fontSize: "0.9rem",
+              boxShadow: "0 4px 12px rgba(217,119,6,0.25)",
+            }}
+          >
+            Crea
+          </button>
+        </div>
+      </div>
+
       {/* LAYOUT 3 COLONNE */}
       <div style={{
         display: "grid",
-        gridTemplateColumns: showEditor ? "1fr 1fr 360px" : "1fr 1fr",
+        gridTemplateColumns: showEditor ? "1fr 1fr 1fr 360px" : "1fr 1fr 1fr",
         gap: "var(--gap)",
         alignItems: "start",
       }}>
@@ -692,6 +814,55 @@ export default function Products() {
             </div>
           </div>
 
+        </div>
+
+        {/* ---- VARIANTI ---- */}
+        <div style={{
+          background: "var(--surface)",
+          border: "1.5px solid var(--border)",
+          borderRadius: "var(--r-xl)",
+          boxShadow: "var(--shadow-sm)",
+        }}>
+          <div style={{
+            padding: "18px 22px",
+            borderBottom: "1.5px solid var(--border)",
+            background: "var(--surface-2)",
+            borderRadius: "var(--r-xl) var(--r-xl) 0 0",
+          }}>
+            <SectionHeader
+              icon="&#x1F4DD;"
+              title="Varianti"
+              count={variants.length}
+              countLabel={variants.length === 1 ? "variante" : "varianti"}
+            />
+            <SearchDropdown
+              value={varSearch}
+              onChange={v => { setVarSearch(v); if (!v) setSelectedVar(null); }}
+              suggestions={varSuggestions}
+              loading={loadingVar}
+              placeholder="Cerca variante..."
+              onSelect={selectVar}
+              renderItem={v => (
+                <div style={{ fontWeight: 600, color: "var(--ink)" }}>{v.name}</div>
+              )}
+            />
+          </div>
+          <div style={{ padding: "12px 16px", maxHeight: 460, overflowY: "auto", display: "grid", gap: 6 }}>
+            {loadingBase ? (
+              <div className="loading-text" style={{ padding: "20px 0" }}>Caricamento...</div>
+            ) : variants.length === 0 ? (
+              <div style={{ textAlign: "center", color: "var(--ink-muted)", padding: "24px 0", fontSize: "0.9rem" }}>
+                Nessuna variante.<br />Creane una sopra.
+              </div>
+            ) : variants.map(v => (
+              <ListItem
+                key={v.id}
+                label={v.name}
+                selected={selectedVar?.id === v.id}
+                onClick={() => selectedVar?.id === v.id ? closeVar() : selectVar(v)}
+              />
+            ))}
+          </div>
         </div>
 
         {/* ---- EDITOR CATEGORIA ---- */}
@@ -870,6 +1041,43 @@ export default function Products() {
                   +
                 </button>
               </div>
+            </div>
+          </EditorPanel>
+        )}
+
+        {/* ---- EDITOR VARIANTE ---- */}
+        {selectedVar && !selectedCat && !selectedProd && (
+          <EditorPanel
+            icon="&#x1F4DD;"
+            title={selectedVar.name}
+            accentColor="#92400e"
+            accentLight="#fffbeb"
+            onClose={closeVar}
+          >
+            <label>
+              Nome variante
+              <input
+                type="text"
+                value={editVarName}
+                onChange={e => setEditVarName(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && saveVar()}
+              />
+            </label>
+            <div style={{ display: "grid", gap: 8 }}>
+              <button
+                onClick={saveVar}
+                style={{
+                  background: "#d97706", color: "#fff",
+                  border: "none", borderRadius: "var(--r-sm)",
+                  minHeight: "var(--touch)", fontWeight: 700, fontSize: "0.95rem",
+                  boxShadow: "0 4px 12px rgba(217,119,6,0.25)",
+                }}
+              >
+                Salva modifiche
+              </button>
+              <button className="btn-danger" onClick={deleteVar}>
+                Elimina variante
+              </button>
             </div>
           </EditorPanel>
         )}

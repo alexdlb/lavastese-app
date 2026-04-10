@@ -9,6 +9,8 @@ function emptyItem() {
     productSearch: "",
     subProductId: "",
     subProductName: "",
+    variantId: "",
+    variantName: "",
     persons: "",
     weightKg: "",
     notes: "",
@@ -25,6 +27,95 @@ async function readJsonSafe(res) {
   } catch {
     throw new Error("Risposta non valida dal server");
   }
+}
+
+/* =========================
+   VARIANT AUTOCOMPLETE
+========================= */
+
+function VariantAutocomplete({ variants, value, variantName, onChange }) {
+  const [search, setSearch] = useState(variantName || "");
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef(null);
+
+  useEffect(() => {
+    if (!value) setSearch("");
+    else setSearch(variantName || "");
+  }, [value, variantName]);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return [];
+    return variants.filter(v => v.name.toLowerCase().startsWith(q)).slice(0, 20);
+  }, [search, variants]);
+
+  function select(v) {
+    setSearch(v.name);
+    setOpen(false);
+    onChange({ variantId: String(v.id), variantName: v.name });
+  }
+
+  function handleInput(e) {
+    setSearch(e.target.value);
+    setOpen(true);
+    if (!e.target.value) onChange({ variantId: "", variantName: "" });
+  }
+
+  useEffect(() => {
+    function handleClick(e) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) {
+        setOpen(false);
+        if (!value) setSearch("");
+        else setSearch(variantName || "");
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [value, variantName]);
+
+  return (
+    <div ref={wrapRef} style={{ position: "relative" }}>
+      <input
+        value={search}
+        onChange={handleInput}
+        onFocus={() => setOpen(true)}
+        placeholder="Cerca variante..."
+        autoComplete="off"
+      />
+      {open && search.trim().length > 0 && filtered.length > 0 && (
+        <div style={{
+          position: "absolute",
+          top: "calc(100% + 4px)",
+          left: 0, right: 0,
+          background: "var(--surface)",
+          border: "1.5px solid var(--border)",
+          borderRadius: "var(--r-md)",
+          boxShadow: "var(--shadow-lg)",
+          zIndex: 500,
+          maxHeight: 200,
+          overflowY: "auto",
+        }}>
+          {filtered.map(v => (
+            <div
+              key={v.id}
+              onMouseDown={() => select(v)}
+              style={{
+                padding: "10px 14px",
+                cursor: "pointer",
+                borderBottom: "1px solid var(--border)",
+                background: String(v.id) === String(value) ? "var(--accent-light)" : "transparent",
+                transition: "background 0.1s",
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = "var(--accent-light)"}
+              onMouseLeave={e => e.currentTarget.style.background = String(v.id) === String(value) ? "var(--accent-light)" : "transparent"}
+            >
+              <div style={{ fontSize: "0.9rem", fontWeight: 600, color: "var(--ink)" }}>{v.name}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 /* =========================
@@ -355,6 +446,7 @@ export default function NewOrder() {
   const navigate = useNavigate();
 
   const [products, setProducts] = useState([]);
+  const [allVariants, setAllVariants] = useState([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -391,14 +483,17 @@ export default function NewOrder() {
   useEffect(() => {
     async function loadProducts() {
       try {
-        const res = await apiFetch("/api/products");
-        const data = await readJsonSafe(res);
+        const [prodRes, varRes] = await Promise.all([
+          apiFetch("/api/products"),
+          apiFetch("/api/variants?limit=200"),
+        ]);
+        const prodData = await readJsonSafe(prodRes);
+        const varData  = await readJsonSafe(varRes);
 
-        if (!res.ok) {
-          throw new Error(data?.error || "Errore caricamento prodotti");
-        }
+        if (!prodRes.ok) throw new Error(prodData?.error || "Errore caricamento prodotti");
 
-        setProducts(Array.isArray(data) ? data : []);
+        setProducts(Array.isArray(prodData) ? prodData : []);
+        setAllVariants(Array.isArray(varData) ? varData : []);
       } catch (err) {
         console.error(err);
         setError(err.message || "Errore caricamento prodotti");
@@ -579,6 +674,7 @@ export default function NewOrder() {
           weightGrams: it.weightKg === "" ? null : Math.round(Number(it.weightKg) * 1000),
           productName: product?.name || it.productName || "",
           subProductName: sub?.name || it.subProductName || "",
+          variantName: it.variantName || "",
           categoryName: product?.categoryName || product?.category || "",
         };
       });
@@ -899,6 +995,8 @@ export default function NewOrder() {
                           productName,
                           subProductId: "",
                           subProductName: "",
+                          variantId: "",
+                          variantName: "",
                           persons: "",
                           weightKg: "",
                         })
@@ -906,42 +1004,18 @@ export default function NewOrder() {
                     />
                   </label>
 
-                  {/* Variante: usa direttamente p già disponibile nello scope */}
-                  {(() => {
-                    const subs = Array.isArray(p?.subProducts) ? p.subProducts : [];
-                    if (!it.productId || subs.length === 0) {
-                      return (
-                        <label style={{ opacity: 0.4 }}>
-                          Variante
-                          <select disabled>
-                            <option>Nessuna variante</option>
-                          </select>
-                        </label>
-                      );
-                    }
-                    return (
-                      <label>
-                        Variante
-                        <select
-                          value={it.subProductId || ""}
-                          onChange={e => {
-                            const sub = subs.find(s => String(s.id) === e.target.value);
-                            updateItem(idx, {
-                              subProductId: e.target.value,
-                              subProductName: sub?.name || "",
-                            });
-                          }}
-                        >
-                          <option value="">Seleziona variante...</option>
-                          {subs.map(s => (
-                            <option key={s.id} value={String(s.id)}>
-                              {s.name}{s.isDefault ? " (default)" : ""}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                    );
-                  })()}
+                  {/* Variante: autocomplete globale */}
+                  <label>
+                    Variante
+                    <VariantAutocomplete
+                      variants={allVariants}
+                      value={it.variantId || ""}
+                      variantName={it.variantName || ""}
+                      onChange={({ variantId, variantName }) =>
+                        updateItem(idx, { variantId, variantName })
+                      }
+                    />
+                  </label>
                 </div>
 
                 {/* Riga 2: Persone, Peso, Allergeni */}
@@ -998,7 +1072,7 @@ export default function NewOrder() {
                   </button>
                   <span style={{ fontSize: 12, opacity: 0.8 }}>
                     {p
-                      ? p.name + (it.subProductName ? " — " + it.subProductName : "")
+                      ? p.name + (it.variantName ? " — " + it.variantName : (it.subProductName ? " — " + it.subProductName : ""))
                       : "Seleziona un prodotto"}
                   </span>
                 </div>

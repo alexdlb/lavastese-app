@@ -338,10 +338,14 @@ export default function OrderDetail() {
                 gap: 12,
                 background: "var(--surface-2)",
               }}>
-                <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr auto", gap: "var(--gap)", alignItems: "end" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "2fr 1.5fr 1fr auto", gap: "var(--gap)", alignItems: "end" }}>
                   <label>
                     Prodotto
                     <input type="text" value={item.productName || ""} onChange={e => updateItem(index, "productName", e.target.value)} />
+                  </label>
+                  <label>
+                    Variante
+                    <input type="text" value={item.variantName || ""} onChange={e => updateItem(index, "variantName", e.target.value)} placeholder="Es. Pan di Spagna" />
                   </label>
                   <label>
                     Quantità

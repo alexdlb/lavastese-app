@@ -272,6 +272,15 @@ export async function initDb() {
     console.log("Utente admin creato con PIN 1234 — cambialo subito!");
   }
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS variants (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY uq_variants_name (name)
+    )
+  `);
+
   await migrateLegacyProductCategories();
 
   console.log("✅ Tabelle MySQL verificate");

@@ -743,6 +743,62 @@ app.get("/api/orders/:id/pdf", requireAuth("admin","operatore"), async (req, res
 });
 
 /* =========================
+   VARIANTS
+========================= */
+
+app.get("/api/variants", requireAuth("admin","operatore"), async (req, res) => {
+  try {
+    const search = String(req.query.search || "").trim();
+    const limit  = Math.min(Number(req.query.limit || 100), 200);
+    const params = [];
+    let where = "";
+    if (search) { where = "WHERE name LIKE ?"; params.push(`${search}%`); }
+    const [rows] = await query(
+      `SELECT id, name FROM variants ${where} ORDER BY name ASC LIMIT ?`,
+      [...params, limit]
+    );
+    res.json(rows);
+  } catch (err) { console.error(err); res.status(500).json({ error: "Errore lettura varianti" }); }
+});
+
+app.post("/api/variants", requireAuth("admin"), async (req, res) => {
+  try {
+    const name = String(req.body?.name || "").trim();
+    if (!name) return res.status(400).json({ error: "Nome obbligatorio" });
+    const [existing] = await query("SELECT id FROM variants WHERE LOWER(name)=LOWER(?) LIMIT 1", [name]);
+    if (existing.length) return res.status(409).json({ error: "Variante già esistente" });
+    const [result] = await execute("INSERT INTO variants (name) VALUES (?)", [name]);
+    res.status(201).json({ id: result.insertId, name });
+  } catch (err) { console.error(err); res.status(500).json({ error: "Errore creazione variante" }); }
+});
+
+app.patch("/api/variants/:id", requireAuth("admin"), async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const name = String(req.body?.name || "").trim();
+    if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: "ID non valido" });
+    if (!name) return res.status(400).json({ error: "Nome obbligatorio" });
+    const [exists] = await query("SELECT id FROM variants WHERE id=?", [id]);
+    if (!exists.length) return res.status(404).json({ error: "Variante non trovata" });
+    const [dup] = await query("SELECT id FROM variants WHERE LOWER(name)=LOWER(?) AND id<>? LIMIT 1", [name, id]);
+    if (dup.length) return res.status(409).json({ error: "Nome già in uso" });
+    await execute("UPDATE variants SET name=? WHERE id=?", [name, id]);
+    res.json({ id, name });
+  } catch (err) { console.error(err); res.status(500).json({ error: "Errore modifica variante" }); }
+});
+
+app.delete("/api/variants/:id", requireAuth("admin"), async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: "ID non valido" });
+    const [exists] = await query("SELECT id FROM variants WHERE id=?", [id]);
+    if (!exists.length) return res.status(404).json({ error: "Variante non trovata" });
+    await execute("DELETE FROM variants WHERE id=?", [id]);
+    res.json({ ok: true });
+  } catch (err) { console.error(err); res.status(500).json({ error: "Errore eliminazione variante" }); }
+});
+
+/* =========================
    CATEGORIES
 ========================= */
 
@@ -1336,21 +1392,6 @@ async function start() {
 
   app.listen(PORT, () => {
     console.log("Server avviato su http://localhost:" + PORT);
-  });
-}
-
-/* =========================
-   SERVE FRONTEND
-========================= */
-const clientDist = path.join(__dirname, "../client/dist");
-console.log("clientDist path:", clientDist);
-console.log("clientDist exists:", fs.existsSync(clientDist));
-if (fs.existsSync(clientDist)) {
-  app.use(express.static(clientDist));
-  app.get("/{*path}", (req, res) => {
-    if (!req.path.startsWith("/api") && !req.path.startsWith("/uploads")) {
-      res.sendFile(path.join(clientDist, "index.html"));
-    }
   });
 }
 
