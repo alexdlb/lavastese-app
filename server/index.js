@@ -1383,16 +1383,25 @@ app.delete("/api/sub-products/:id", requireAuth("admin"), async (req, res) => {
 });
 
 /* =========================
-   START
+   SERVE FRONTEND (produzione)
 ========================= */
+const clientDist = path.join(__dirname, "../client/dist");
+console.log("clientDist path:", clientDist);
+console.log("clientDist exists:", fs.existsSync(clientDist));
+if (fs.existsSync(clientDist)) {
+  app.use(express.static(clientDist));
+  app.get("/{*path}", (req, res) => {
+    if (!req.path.startsWith("/api") && !req.path.startsWith("/uploads")) {
+      res.sendFile(path.join(clientDist, "index.html"));
+    }
+  });
+}
 
 async function start() {
   await testConnection();
   await initDb();
-
   app.listen(PORT, () => {
     console.log("Server avviato su http://localhost:" + PORT);
   });
 }
-
 start();
