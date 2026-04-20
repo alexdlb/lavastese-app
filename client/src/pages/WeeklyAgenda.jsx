@@ -175,25 +175,96 @@ function OrderCard({ order, onStatusChange, onNavigate }) {
           {isDelivery ? "🚗 Consegna" : "🛍️ Ritiro"}
         </div>
 
-        <div style={{ marginTop: 8, display: "grid", gap: 2 }}>
-          {(order.items || []).slice(0, 3).map((it, idx) => (
-            <div key={idx} style={{
-              fontSize: "0.75rem",
-              color: "var(--ink-2)",
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-            }}>
-              • {it.productName || "Prodotto"}
-              {it.weightGrams ? ` — ${(it.weightGrams / 1000).toFixed(1)} kg` : ""}
-            </div>
-          ))}
-          {(order.items || []).length > 3 && (
-            <div style={{ fontSize: "0.7rem", color: "var(--ink-muted)" }}>
-              +{(order.items || []).length - 3} altri
-            </div>
-          )}
+        <div style={{ marginTop: 8, display: "grid", gap: 6 }}>
+          {(order.items || []).map((it, idx) => {
+            const hasAllergen = it.allergenOption && it.allergenOption !== "standard";
+            const allergenLabel = hasAllergen
+              ? it.allergenOption.replace(/_/g, " ").replace("no ", "No ")
+              : null;
+            return (
+              <div key={idx} style={{
+                background: "rgba(0,0,0,0.04)",
+                borderRadius: "var(--r-sm)",
+                padding: "6px 8px",
+                borderLeft: hasAllergen ? "3px solid #f59e0b" : "3px solid transparent",
+              }}>
+                {/* Prodotto + variante */}
+                <div style={{
+                  fontWeight: 700,
+                  fontSize: "0.8rem",
+                  color: "var(--ink)",
+                }}>
+                  {it.productName || "Prodotto"}
+                  {it.variantName && (
+                    <span style={{
+                      marginLeft: 5,
+                      fontWeight: 500,
+                      color: "var(--accent)",
+                      fontSize: "0.75rem",
+                    }}>
+                      — {it.variantName}
+                    </span>
+                  )}
+                  {it.weightGrams ? (
+                    <span style={{ fontWeight: 400, color: "var(--ink-3)", fontSize: "0.73rem", marginLeft: 5 }}>
+                      {(it.weightGrams / 1000).toFixed(1)} kg
+                    </span>
+                  ) : null}
+                  {it.persons ? (
+                    <span style={{ fontWeight: 400, color: "var(--ink-3)", fontSize: "0.73rem", marginLeft: 5 }}>
+                      {it.persons} pers.
+                    </span>
+                  ) : null}
+                </div>
+
+                {/* Allergeni */}
+                {hasAllergen && (
+                  <div style={{
+                    marginTop: 3,
+                    display: "inline-block",
+                    background: "#fef3c7",
+                    color: "#92400e",
+                    border: "1px solid #fde68a",
+                    borderRadius: 4,
+                    padding: "1px 6px",
+                    fontSize: "0.68rem",
+                    fontWeight: 700,
+                  }}>
+                    ⚠ {allergenLabel}
+                  </div>
+                )}
+
+                {/* Note prodotto */}
+                {it.notes && (
+                  <div style={{
+                    marginTop: 3,
+                    fontSize: "0.72rem",
+                    color: "var(--ink-2)",
+                    fontStyle: "italic",
+                  }}>
+                    {it.notes}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
+
+        {/* Note ordine */}
+        {order.notes && (
+          <div style={{
+            marginTop: 6,
+            padding: "5px 8px",
+            background: "#eff6ff",
+            borderRadius: "var(--r-sm)",
+            fontSize: "0.72rem",
+            color: "#1e40af",
+            borderLeft: "3px solid #93c5fd",
+            fontStyle: "italic",
+          }}>
+            {order.notes}
+          </div>
+        )}
       </div>
 
       {/* FOOTER — bottoni cambio stato */}

@@ -4,6 +4,8 @@ import { useNavigate } from "react-router-dom";
 
 function emptyItem() {
   return {
+    categoryId: "",
+    categoryName: "",
     productId: "",
     productName: "",
     productSearch: "",
@@ -30,10 +32,153 @@ async function readJsonSafe(res) {
 }
 
 /* =========================
+   MODAL CREA ELEMENTO
+========================= */
+function CreateModal({ type, name, onChangeName, onSave, onClose, saving }) {
+  return (
+    <div style={{
+      position: "fixed", inset: 0, zIndex: 1000,
+      background: "rgba(0,0,0,0.45)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      padding: 24,
+    }}
+      onClick={e => e.target === e.currentTarget && onClose()}
+    >
+      <div style={{
+        background: "var(--surface)",
+        borderRadius: "var(--r-xl)",
+        padding: "28px 32px",
+        minWidth: 320,
+        maxWidth: 400,
+        width: "100%",
+        boxShadow: "var(--shadow-lg)",
+      }}>
+        <h3 style={{ margin: "0 0 16px", fontFamily: "var(--font-title)" }}>
+          Crea nuova {type}
+        </h3>
+        <label>
+          Nome
+          <input
+            type="text"
+            value={name}
+            onChange={e => onChangeName(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && !saving && onSave()}
+            autoFocus
+          />
+        </label>
+        <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+          <button
+            className="btn-primary"
+            onClick={onSave}
+            disabled={saving || !name.trim()}
+            style={{ flex: 1 }}
+          >
+            {saving ? "Salvataggio..." : "Crea"}
+          </button>
+          <button onClick={onClose} disabled={saving}>Annulla</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* =========================
+   CATEGORY AUTOCOMPLETE
+========================= */
+function CategoryAutocomplete({ categories, value, categoryName, onChange, onCreateNew }) {
+  const [search, setSearch] = useState(categoryName || "");
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef(null);
+
+  useEffect(() => {
+    if (!value) setSearch("");
+    else setSearch(categoryName || "");
+  }, [value, categoryName]);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return [];
+    return categories.filter(c => c.name.toLowerCase().startsWith(q)).slice(0, 20);
+  }, [search, categories]);
+
+  const showCreate = search.trim().length > 0 && !categories.some(
+    c => c.name.toLowerCase() === search.trim().toLowerCase()
+  );
+
+  function select(c) {
+    setSearch(c.name);
+    setOpen(false);
+    onChange({ categoryId: String(c.id), categoryName: c.name });
+  }
+
+  function handleInput(e) {
+    setSearch(e.target.value);
+    setOpen(true);
+    if (!e.target.value) onChange({ categoryId: "", categoryName: "" });
+  }
+
+  useEffect(() => {
+    function handleClick(e) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) {
+        setOpen(false);
+        if (!value) setSearch("");
+        else setSearch(categoryName || "");
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [value, categoryName]);
+
+  return (
+    <div ref={wrapRef} style={{ position: "relative" }}>
+      <input
+        value={search}
+        onChange={handleInput}
+        onFocus={() => setOpen(true)}
+        placeholder="Cerca categoria..."
+        autoComplete="off"
+      />
+      {open && search.trim().length > 0 && (filtered.length > 0 || showCreate) && (
+        <div style={{
+          position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0,
+          background: "var(--surface)", border: "1.5px solid var(--border)",
+          borderRadius: "var(--r-md)", boxShadow: "var(--shadow-lg)",
+          zIndex: 500, maxHeight: 200, overflowY: "auto",
+        }}>
+          {filtered.map(c => (
+            <div key={c.id} onMouseDown={() => select(c)} style={{
+              padding: "10px 14px", cursor: "pointer",
+              borderBottom: "1px solid var(--border)",
+              background: String(c.id) === String(value) ? "var(--accent-light)" : "transparent",
+              transition: "background 0.1s",
+            }}
+              onMouseEnter={e => e.currentTarget.style.background = "var(--accent-light)"}
+              onMouseLeave={e => e.currentTarget.style.background = String(c.id) === String(value) ? "var(--accent-light)" : "transparent"}
+            >
+              <div style={{ fontSize: "0.9rem", fontWeight: 600, color: "var(--ink)" }}>{c.name}</div>
+            </div>
+          ))}
+          {showCreate && (
+            <div onMouseDown={() => { setOpen(false); onCreateNew(search.trim()); }} style={{
+              padding: "10px 14px", cursor: "pointer",
+              background: "var(--accent-light)", color: "var(--accent)",
+              fontWeight: 700, fontSize: "0.88rem",
+              borderTop: filtered.length > 0 ? "1px solid var(--border)" : "none",
+            }}>
+              + Crea "{search.trim()}"
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* =========================
    VARIANT AUTOCOMPLETE
 ========================= */
 
-function VariantAutocomplete({ variants, value, variantName, onChange }) {
+function VariantAutocomplete({ variants, value, variantName, onChange, onCreateNew }) {
   const [search, setSearch] = useState(variantName || "");
   const [open, setOpen] = useState(false);
   const wrapRef = useRef(null);
@@ -48,6 +193,10 @@ function VariantAutocomplete({ variants, value, variantName, onChange }) {
     if (!q) return [];
     return variants.filter(v => v.name.toLowerCase().startsWith(q)).slice(0, 20);
   }, [search, variants]);
+
+  const showCreate = onCreateNew && search.trim().length > 0 && !variants.some(
+    v => v.name.toLowerCase() === search.trim().toLowerCase()
+  );
 
   function select(v) {
     setSearch(v.name);
@@ -82,7 +231,7 @@ function VariantAutocomplete({ variants, value, variantName, onChange }) {
         placeholder="Cerca variante..."
         autoComplete="off"
       />
-      {open && search.trim().length > 0 && filtered.length > 0 && (
+      {open && search.trim().length > 0 && (filtered.length > 0 || showCreate) && (
         <div style={{
           position: "absolute",
           top: "calc(100% + 4px)",
@@ -112,6 +261,16 @@ function VariantAutocomplete({ variants, value, variantName, onChange }) {
               <div style={{ fontSize: "0.9rem", fontWeight: 600, color: "var(--ink)" }}>{v.name}</div>
             </div>
           ))}
+          {showCreate && (
+            <div onMouseDown={() => { setOpen(false); onCreateNew(search.trim()); }} style={{
+              padding: "10px 14px", cursor: "pointer",
+              background: "var(--accent-light)", color: "var(--accent)",
+              fontWeight: 700, fontSize: "0.88rem",
+              borderTop: filtered.length > 0 ? "1px solid var(--border)" : "none",
+            }}>
+              + Crea "{search.trim()}"
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -338,7 +497,7 @@ const navBtnStyle = {
    PRODUCT AUTOCOMPLETE
 ========================= */
 
-function ProductAutocomplete({ products, value, productName, onChange }) {
+function ProductAutocomplete({ products, value, productName, onChange, onCreateNew }) {
   // value = productId, productName = nome prodotto selezionato
   const [search, setSearch] = useState(productName || "");
   const [open, setOpen] = useState(false);
@@ -358,6 +517,10 @@ function ProductAutocomplete({ products, value, productName, onChange }) {
       (p.categoryName || p.category || "").toLowerCase().startsWith(q)
     ).slice(0, 30);
   }, [search, products]);
+
+  const showCreate = onCreateNew && search.trim().length > 0 && !products.some(
+    p => p.name.toLowerCase() === search.trim().toLowerCase()
+  );
 
   function select(p) {
     setSearch(p.name);
@@ -396,7 +559,7 @@ function ProductAutocomplete({ products, value, productName, onChange }) {
         placeholder="Cerca prodotto..."
         autoComplete="off"
       />
-      {open && search.trim().length > 0 && filtered.length > 0 && (
+      {open && search.trim().length > 0 && (filtered.length > 0 || showCreate) && (
         <div style={{
           position: "absolute",
           top: "calc(100% + 4px)",
@@ -432,6 +595,16 @@ function ProductAutocomplete({ products, value, productName, onChange }) {
               )}
             </div>
           ))}
+          {showCreate && (
+            <div onMouseDown={() => { setOpen(false); onCreateNew(search.trim()); }} style={{
+              padding: "10px 14px", cursor: "pointer",
+              background: "var(--accent-light)", color: "var(--accent)",
+              fontWeight: 700, fontSize: "0.88rem",
+              borderTop: filtered.length > 0 ? "1px solid var(--border)" : "none",
+            }}>
+              + Crea "{search.trim()}"
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -446,7 +619,11 @@ export default function NewOrder() {
   const navigate = useNavigate();
 
   const [products, setProducts] = useState([]);
-  const [allVariants, setAllVariants] = useState([]);
+  const [allVariants, setAllVariants]   = useState([]);
+  const [allCategories, setAllCategories] = useState([]);
+  const [modal, setModal] = useState(null); // { type: 'categoria'|'prodotto'|'variante', idx, name }
+  const [modalName, setModalName] = useState("");
+  const [modalSaving, setModalSaving] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -483,17 +660,20 @@ export default function NewOrder() {
   useEffect(() => {
     async function loadProducts() {
       try {
-        const [prodRes, varRes] = await Promise.all([
+        const [prodRes, varRes, catRes] = await Promise.all([
           apiFetch("/api/products"),
           apiFetch("/api/variants?limit=200"),
+          apiFetch("/api/categories?limit=200"),
         ]);
         const prodData = await readJsonSafe(prodRes);
         const varData  = await readJsonSafe(varRes);
+        const catData  = await readJsonSafe(catRes);
 
         if (!prodRes.ok) throw new Error(prodData?.error || "Errore caricamento prodotti");
 
         setProducts(Array.isArray(prodData) ? prodData : []);
         setAllVariants(Array.isArray(varData) ? varData : []);
+        setAllCategories(Array.isArray(catData) ? catData : []);
       } catch (err) {
         console.error(err);
         setError(err.message || "Errore caricamento prodotti");
@@ -509,6 +689,55 @@ export default function NewOrder() {
     products.forEach((p) => m.set(String(p.id), p));
     return m;
   }, [products]);
+
+  /* ---- MODAL CREA ELEMENTO ---- */
+  function openModal(type, idx, name) {
+    setModal({ type, idx });
+    setModalName(name || "");
+  }
+
+  async function saveModal() {
+    if (!modal || !modalName.trim()) return;
+    setModalSaving(true);
+    try {
+      let endpoint, body, responseKey;
+      if (modal.type === "categoria") {
+        endpoint = "/api/categories";
+        body = { name: modalName.trim() };
+      } else if (modal.type === "prodotto") {
+        endpoint = "/api/products";
+        body = { name: modalName.trim() };
+      } else {
+        endpoint = "/api/variants";
+        body = { name: modalName.trim() };
+      }
+      const res = await apiFetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await readJsonSafe(res);
+      if (!res.ok) { alert(data?.error || "Errore creazione"); return; }
+
+      // Aggiorna le liste locali
+      if (modal.type === "categoria") {
+        setAllCategories(prev => [...prev, data]);
+        if (modal.idx !== null) updateItem(modal.idx, { categoryId: String(data.id), categoryName: data.name });
+      } else if (modal.type === "prodotto") {
+        setProducts(prev => [...prev, data]);
+        if (modal.idx !== null) updateItem(modal.idx, { productId: String(data.id), productName: data.name });
+      } else {
+        setAllVariants(prev => [...prev, data]);
+        if (modal.idx !== null) updateItem(modal.idx, { variantId: String(data.id), variantName: data.name });
+      }
+      setModal(null);
+      setModalName("");
+    } catch (err) {
+      alert(err.message || "Errore");
+    } finally {
+      setModalSaving(false);
+    }
+  }
 
   function updateItem(idx, patch) {
     setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
@@ -724,6 +953,17 @@ export default function NewOrder() {
 
   return (
     <div>
+      {modal && (
+        <CreateModal
+          type={modal.type}
+          name={modalName}
+          onChangeName={setModalName}
+          onSave={saveModal}
+          onClose={() => { setModal(null); setModalName(""); }}
+          saving={modalSaving}
+        />
+      )}
+
       <h2 style={{ marginTop: 0 }}>Nuovo ordine</h2>
 
       {error && (
@@ -981,8 +1221,21 @@ export default function NewOrder() {
 
             return (
               <div key={idx} style={{ border: "1.5px dashed var(--border-strong)", borderRadius: "var(--r-md)", padding: 16, background: "var(--surface-2)" }}>
-                {/* Riga 1: Prodotto + Variante */}
-                <div style={{ display: "grid", gap: "var(--gap)", gridTemplateColumns: "2fr 1.5fr" }}>
+                {/* Riga 1: Categoria + Prodotto + Variante */}
+                <div style={{ display: "grid", gap: "var(--gap)", gridTemplateColumns: "1fr 1.5fr 1.5fr" }}>
+                  <label>
+                    Categoria
+                    <CategoryAutocomplete
+                      categories={allCategories}
+                      value={it.categoryId || ""}
+                      categoryName={it.categoryName || ""}
+                      onChange={({ categoryId, categoryName }) =>
+                        updateItem(idx, { categoryId, categoryName })
+                      }
+                      onCreateNew={name => openModal("categoria", idx, name)}
+                    />
+                  </label>
+
                   <label>
                     Prodotto*
                     <ProductAutocomplete
@@ -1001,10 +1254,10 @@ export default function NewOrder() {
                           weightKg: "",
                         })
                       }
+                      onCreateNew={name => openModal("prodotto", idx, name)}
                     />
                   </label>
 
-                  {/* Variante: autocomplete globale */}
                   <label>
                     Variante
                     <VariantAutocomplete
@@ -1014,6 +1267,7 @@ export default function NewOrder() {
                       onChange={({ variantId, variantName }) =>
                         updateItem(idx, { variantId, variantName })
                       }
+                      onCreateNew={name => openModal("variante", idx, name)}
                     />
                   </label>
                 </div>

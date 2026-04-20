@@ -244,9 +244,8 @@ export default function Products() {
   const [prodSearch, setProdSearch]           = useState("");
   const [prodSuggestions, setProdSuggestions] = useState([]);
   const [loadingProd, setLoadingProd]         = useState(false);
-  const [catFilter, setCatFilter]             = useState("");
   const [selectedProd, setSelectedProd]       = useState(null);
-  const [editProd, setEditProd]               = useState({ name: "", categoryId: "" });
+  const [editProd, setEditProd]               = useState({ name: "" });
 
   const [newCatName, setNewCatName]           = useState("");
   const [newProdName, setNewProdName]         = useState("");
@@ -325,7 +324,6 @@ export default function Products() {
     const t = setTimeout(async () => {
       try {
         const params = new URLSearchParams({ search: v, limit: "10" });
-        if (catFilter) params.set("categoryId", catFilter);
         const res = await apiFetch(`/api/products?${params}`, { signal: ctrl.signal });
         const data = await readJsonSafe(res);
         setProdSuggestions(Array.isArray(data) ? data : []);
@@ -333,7 +331,7 @@ export default function Products() {
       finally { setLoadingProd(false); }
     }, 300);
     return () => { ctrl.abort(); clearTimeout(t); };
-  }, [prodSearch, catFilter]);
+  }, [prodSearch]);
 
   /* Suggerimenti varianti */
   useEffect(() => {
@@ -414,7 +412,7 @@ export default function Products() {
     const p = data.find(x => String(x.id) === String(id));
     if (p) {
       setSelectedProd(p);
-      setEditProd({ name: p.name || "", categoryId: p.categoryId == null ? "" : String(p.categoryId) });
+      setEditProd({ name: p.name || "" });
     }
   }
 
@@ -469,7 +467,6 @@ export default function Products() {
     const res = await apiFetch(`/api/categories/${selectedCat.id}`, { method: "DELETE" });
     const data = await readJsonSafe(res);
     if (!res.ok) { alert(data?.error || "Errore"); return; }
-    if (String(catFilter) === String(selectedCat.id)) setCatFilter("");
     await loadBase();
     closeCat();
     showToast("Categoria eliminata");
@@ -479,7 +476,7 @@ export default function Products() {
 
   function selectProd(prod) {
     setSelectedProd(prod);
-    setEditProd({ name: prod.name || "", categoryId: prod.categoryId == null ? "" : String(prod.categoryId) });
+    setEditProd({ name: prod.name || "" });
     setProdSearch(prod.name || "");
     setProdSuggestions([]);
     setNewSubName("");
@@ -489,7 +486,7 @@ export default function Products() {
 
   function closeProd() {
     setSelectedProd(null);
-    setEditProd({ name: "", categoryId: "" });
+    setEditProd({ name: "" });
     setProdSearch("");
     setNewSubName("");
   }
@@ -499,7 +496,7 @@ export default function Products() {
     if (!name) return;
     const res = await apiFetch("/api/products", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, categoryId: newProdCatId || null }),
+      body: JSON.stringify({ name }),
     });
     const data = await readJsonSafe(res);
     if (!res.ok) { alert(data?.error || "Errore"); return; }
@@ -515,7 +512,7 @@ export default function Products() {
     if (!name) return;
     const res = await apiFetch(`/api/products/${selectedProd.id}`, {
       method: "PATCH", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, categoryId: editProd.categoryId || null }),
+      body: JSON.stringify({ name }),
     });
     const data = await readJsonSafe(res);
     if (!res.ok) { alert(data?.error || "Errore"); return; }
@@ -561,7 +558,6 @@ export default function Products() {
   }
 
   const showEditor = !!(selectedCat || selectedProd || selectedVar);
-  const prodFiltered = productOptions.filter(p => !catFilter || String(p.categoryId) === String(catFilter));
 
   return (
     <div style={{ display: "grid", gap: "var(--gap-xl)" }}>
@@ -783,17 +779,10 @@ export default function Products() {
             <SectionHeader
               icon="&#x1F382;"
               title="Prodotti"
-              count={prodFiltered.length}
-              countLabel={prodFiltered.length === 1 ? "prodotto" : "prodotti"}
+              count={productOptions.length}
+              countLabel={productOptions.length === 1 ? "prodotto" : "prodotti"}
             />
             <div style={{ display: "grid", gap: 10 }}>
-              <select
-                value={catFilter}
-                onChange={e => setCatFilter(e.target.value)}
-              >
-                <option value="">Tutte le categorie</option>
-                {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
               <SearchDropdown
                 value={prodSearch}
                 onChange={v => { setProdSearch(v); if (!v) setSelectedProd(null); }}
@@ -931,17 +920,6 @@ export default function Products() {
                 onChange={e => setEditProd(p => ({ ...p, name: e.target.value }))}
                 onKeyDown={e => e.key === "Enter" && saveProd()}
               />
-            </label>
-
-            <label>
-              Categoria
-              <select
-                value={editProd.categoryId}
-                onChange={e => setEditProd(p => ({ ...p, categoryId: e.target.value }))}
-              >
-                <option value="">Senza categoria</option>
-                {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
             </label>
 
             <div style={{ display: "grid", gap: 8 }}>
