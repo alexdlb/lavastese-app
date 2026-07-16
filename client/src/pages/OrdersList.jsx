@@ -395,7 +395,7 @@ export default function OrdersList() {
         {/* Header giorni */}
         <div style={{
           display: "grid",
-          gridTemplateColumns: "48px repeat(7, 1fr)",
+          gridTemplateColumns: "56px repeat(7, 1fr)",
           borderBottom: "1.5px solid var(--border)",
           background: "var(--surface)",
           flexShrink: 0,
@@ -449,7 +449,7 @@ export default function OrdersList() {
         <div style={{ flex: 1, overflowY: "auto", position: "relative" }} onClick={() => setSelectedOrder(null)}>
           <div style={{
             display: "grid",
-            gridTemplateColumns: "48px repeat(7, 1fr)",
+            gridTemplateColumns: "56px repeat(7, 1fr)",
             position: "relative",
             minHeight: HOURS.length * HOUR_PX,
           }}>
@@ -457,19 +457,35 @@ export default function OrdersList() {
             {/* Colonna ore */}
             <div>
               {HOURS.map(h => (
-                <div key={h} style={{
-                  height: HOUR_PX,
-                  display: "flex",
-                  alignItems: "flex-start",
-                  justifyContent: "flex-end",
-                  paddingRight: 8,
-                  paddingTop: 2,
-                  fontSize: "0.68rem",
-                  color: "var(--ink-2)",
-                  fontWeight: 700,
-                  borderTop: "1.5px solid var(--border)",
-                }}>
-                  {String(h).padStart(2, "0")}:00
+                <div key={h} style={{ height: HOUR_PX, position: "relative", borderTop: "1.5px solid var(--border)" }}>
+                  {/* Ora piena */}
+                  <div style={{
+                    position: "absolute", top: 2, right: 8,
+                    fontSize: "0.68rem", color: "var(--ink-2)", fontWeight: 700,
+                  }}>
+                    {String(h).padStart(2, "0")}:00
+                  </div>
+                  {/* :15 */}
+                  <div style={{
+                    position: "absolute", top: SLOT_PX + 1, right: 8,
+                    fontSize: "0.6rem", color: "var(--ink-muted)", fontWeight: 500, opacity: 0.7,
+                  }}>
+                    {String(h).padStart(2, "0")}:15
+                  </div>
+                  {/* :30 */}
+                  <div style={{
+                    position: "absolute", top: SLOT_PX * 2 + 1, right: 8,
+                    fontSize: "0.62rem", color: "var(--ink-3)", fontWeight: 600, opacity: 0.85,
+                  }}>
+                    {String(h).padStart(2, "0")}:30
+                  </div>
+                  {/* :45 */}
+                  <div style={{
+                    position: "absolute", top: SLOT_PX * 3 + 1, right: 8,
+                    fontSize: "0.6rem", color: "var(--ink-muted)", fontWeight: 500, opacity: 0.7,
+                  }}>
+                    {String(h).padStart(2, "0")}:45
+                  </div>
                 </div>
               ))}
             </div>
