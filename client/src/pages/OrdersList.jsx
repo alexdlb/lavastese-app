@@ -16,7 +16,12 @@ const HOURS = Array.from({ length: 16 }, (_, i) => i + 6); // 06:00 → 21:00
 const HOUR_PX = 64; // altezza di ogni ora in pixel
 
 function toDateKey(date) {
-  return date.toISOString().slice(0, 10);
+  // Usa l'ora LOCALE, non UTC — altrimenti gli ordini serali/notturni
+  // vengono spostati al giorno sbagliato per il fuso italiano.
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
 function startOfWeek(date) {
