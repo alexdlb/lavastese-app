@@ -665,10 +665,11 @@ app.get("/api/orders/:id/pdf", requireAuth("admin","operatore"), async (req, res
           .text(it.productName || "-", margin, headerY);
         headerY += 16;
 
-        // Dettagli: peso, persone, allergeni
+        // Dettagli: peso, persone, pezzi, allergeni
         const details = [];
         if (it.weightGrams) details.push((it.weightGrams / 1000).toFixed(1) + " kg");
         if (it.persons)     details.push(it.persons + " persone");
+        if (it.pieces)      details.push(it.pieces + " pezzi");
         if (it.allergenOption && it.allergenOption !== "standard") {
           details.push(it.allergenOption.replace(/_/g, " "));
         }
@@ -706,6 +707,17 @@ app.get("/api/orders/:id/pdf", requireAuth("admin","operatore"), async (req, res
       }
       doc.fontSize(10).font("Helvetica-Bold").fillColor("#3d4a5a")
         .text(payText, margin, headerY, { width: contentW });
+      headerY += 18;
+    }
+
+    // Restituzione vassoio (ristorante)
+    if (order.invoiceData?.clientType === "ristorante" && order.invoiceData?.trayReturn) {
+      hr(headerY);
+      headerY += 14;
+      label("Restituzione vassoio", margin, headerY);
+      headerY += 14;
+      doc.fontSize(10).font("Helvetica-Bold").fillColor("#b45309")
+        .text("SI - Vassoio da restituire", margin, headerY, { width: contentW });
       headerY += 18;
     }
 
