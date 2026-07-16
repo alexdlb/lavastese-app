@@ -204,6 +204,16 @@ export default function OrderDetail() {
           <span className={`badge ${isDelivery ? "badge-blue" : "badge-orange"}`}>
             {isDelivery ? "Consegna" : "Ritiro"}
           </span>
+          {order.payment?.status === "pagato" && (
+            <span className="badge badge-green">
+              ✓ Pagato
+            </span>
+          )}
+          {order.payment?.status === "acconto" && (
+            <span className="badge" style={{ background: "#fef3c7", color: "#92400e", border: "1px solid #fde68a" }}>
+              Acconto € {Number(order.payment.depositAmount || 0).toFixed(2)}
+            </span>
+          )}
         </div>
 
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>

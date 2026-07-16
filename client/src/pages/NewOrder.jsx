@@ -651,6 +651,10 @@ export default function NewOrder() {
     sdi: "",
   });
 
+  // Pagamento
+  const [paymentStatus, setPaymentStatus] = useState(""); // "" | "pagato" | "acconto"
+  const [depositAmount, setDepositAmount] = useState("");
+
   const [photoFile, setPhotoFile] = useState(null);
   const [photoUrl, setPhotoUrl] = useState("");
 
@@ -923,6 +927,10 @@ export default function NewOrder() {
         notes,
         invoiceRequested,
         invoiceData: invoiceRequested ? invoiceData : null,
+        payment: paymentStatus ? {
+          status: paymentStatus,
+          depositAmount: paymentStatus === "acconto" ? (depositAmount || "0") : null,
+        } : null,
         signature: currentSignatureDataUrl,
         signatureDataUrl: currentSignatureDataUrl,
         signatureUrl,
@@ -1143,7 +1151,59 @@ export default function NewOrder() {
         )}
       </section>
 
-      {/* CONSEGNA */}
+      {/* PAGAMENTO */}
+      <section className="card" style={{ marginTop: "var(--gap)" }}>
+        <h3 style={{ marginTop: 0, fontFamily: "var(--font-title)", fontSize: "1.2rem" }}>Pagamento</h3>
+
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {[
+            { key: "", label: "Non pagato" },
+            { key: "pagato", label: "Pagato interamente" },
+            { key: "acconto", label: "Acconto versato" },
+          ].map(opt => {
+            const active = paymentStatus === opt.key;
+            return (
+              <button
+                key={opt.key || "none"}
+                type="button"
+                onClick={() => {
+                  setPaymentStatus(opt.key);
+                  if (opt.key !== "acconto") setDepositAmount("");
+                }}
+                style={{
+                  flex: 1,
+                  minWidth: 140,
+                  padding: "12px 16px",
+                  borderRadius: "var(--r-sm)",
+                  border: active ? "2px solid var(--accent)" : "1.5px solid var(--border)",
+                  background: active ? "var(--accent-light)" : "var(--surface)",
+                  color: active ? "var(--accent)" : "var(--ink-2)",
+                  fontWeight: active ? 700 : 500,
+                  fontSize: "0.9rem",
+                  cursor: "pointer",
+                  transition: "all 0.1s",
+                }}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {paymentStatus === "acconto" && (
+          <label style={{ marginTop: "var(--gap)", display: "block", maxWidth: 240 }}>
+            Importo acconto (€)
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={depositAmount}
+              onChange={e => setDepositAmount(e.target.value)}
+              placeholder="Es. 20.00"
+            />
+          </label>
+        )}
+      </section>
       <section className="card" style={{ marginTop: "var(--gap)" }}>
         <h3 style={{ marginTop: 0, fontFamily: "var(--font-title)", fontSize: "1.2rem" }}>Consegna / Ritiro</h3>
 

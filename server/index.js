@@ -690,6 +690,25 @@ app.get("/api/orders/:id/pdf", requireAuth("admin","operatore"), async (req, res
       });
     }
 
+    // Pagamento
+    if (order.payment?.status) {
+      hr(headerY);
+      headerY += 14;
+      label("Pagamento", margin, headerY);
+      headerY += 14;
+      let payText;
+      if (order.payment.status === "pagato") {
+        payText = "Pagato interamente";
+      } else if (order.payment.status === "acconto") {
+        payText = "Acconto versato: € " + Number(order.payment.depositAmount || 0).toFixed(2);
+      } else {
+        payText = "Non pagato";
+      }
+      doc.fontSize(10).font("Helvetica-Bold").fillColor("#3d4a5a")
+        .text(payText, margin, headerY, { width: contentW });
+      headerY += 18;
+    }
+
     // Note ordine
     if (order.notes) {
       hr(headerY);
@@ -1398,6 +1417,21 @@ app.delete("/api/sub-products/:id", requireAuth("admin"), async (req, res) => {
     res.status(500).json({ error: "Errore eliminazione sottoprodotto" });
   }
 });
+
+/* =========================
+   SERVE FRONTEND (produzione)
+========================= */
+const clientDist = path.join(__dirname, "../client/dist");
+console.log("clientDist path:", clientDist);
+console.log("clientDist exists:", fs.existsSync(clientDist));
+if (fs.existsSync(clientDist)) {
+  app.use(express.static(clientDist));
+  app.get("/{*path}", (req, res) => {
+    if (!req.path.startsWith("/api") && !req.path.startsWith("/uploads")) {
+      res.sendFile(path.join(clientDist, "index.html"));
+    }
+  });
+}
 
 /* =========================
    START
