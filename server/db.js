@@ -281,6 +281,13 @@ export async function initDb() {
     )
   `);
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS order_counters (
+      year INT PRIMARY KEY,
+      last_number INT NOT NULL DEFAULT 0
+    )
+  `);
+
   await migrateLegacyProductCategories();
 
   console.log("✅ Tabelle MySQL verificate");

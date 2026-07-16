@@ -640,6 +640,7 @@ export default function NewOrder() {
   const [notes, setNotes] = useState("");
   const [invoiceRequested, setInvoiceRequested] = useState(false);
   const [invoiceData, setInvoiceData] = useState({
+    clientType: "privato",
     ragioneSociale: "",
     partitaIva: "",
     via: "",
@@ -1019,6 +1020,44 @@ export default function NewOrder() {
 
         {invoiceRequested && (
           <div style={{ marginTop: "var(--gap)", display: "grid", gap: "var(--gap)" }}>
+            {/* Tipo cliente */}
+            <div>
+              <div style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--ink-2)", marginBottom: 8 }}>
+                Tipo cliente
+              </div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                {[
+                  { key: "privato", label: "Privato" },
+                  { key: "ristorante", label: "Ristorante" },
+                  { key: "bnb", label: "B&B" },
+                ].map(opt => {
+                  const active = (invoiceData.clientType || "privato") === opt.key;
+                  return (
+                    <button
+                      key={opt.key}
+                      type="button"
+                      onClick={() => setInvoiceData(p => ({ ...p, clientType: opt.key }))}
+                      style={{
+                        flex: 1,
+                        minWidth: 100,
+                        padding: "10px 16px",
+                        borderRadius: "var(--r-sm)",
+                        border: active ? "2px solid var(--accent)" : "1.5px solid var(--border)",
+                        background: active ? "var(--accent-light)" : "var(--surface)",
+                        color: active ? "var(--accent)" : "var(--ink-2)",
+                        fontWeight: active ? 700 : 500,
+                        fontSize: "0.9rem",
+                        cursor: "pointer",
+                        transition: "all 0.1s",
+                      }}
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             <div style={{ display: "grid", gap: "var(--gap)", gridTemplateColumns: "1fr 1fr" }}>
               <label>
                 Ragione Sociale
@@ -1300,15 +1339,12 @@ export default function NewOrder() {
 
                   <label>
                     Allergeni
-                    <select
-                      value={it.allergenOption || "standard"}
-                      onChange={(e) => updateItem(idx, { allergenOption: e.target.value })}
-                    >
-                      <option value="standard">Standard</option>
-                      <option value="no_glutine">No glutine</option>
-                      <option value="no_lattosio">No lattosio</option>
-                      <option value="no_glutine_lattosio">No glutine e no lattosio</option>
-                    </select>
+                    <input
+                      type="text"
+                      value={it.allergenOption === "standard" ? "" : (it.allergenOption || "")}
+                      onChange={(e) => updateItem(idx, { allergenOption: e.target.value || "standard" })}
+                      placeholder="Es. no glutine, no lattosio..."
+                    />
                   </label>
                 </div>
 

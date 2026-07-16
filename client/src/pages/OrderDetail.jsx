@@ -191,9 +191,16 @@ export default function OrderDetail() {
             ← Ordini
           </button>
           <span style={{ color: "var(--border-strong)" }}>|</span>
-          <span style={{ fontWeight: 700, color: "var(--ink)", fontSize: "1.05rem" }}>
-            {order.customer?.name || "Ordine #" + id}
-          </span>
+          <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.2 }}>
+            <span style={{ fontWeight: 700, color: "var(--ink)", fontSize: "1.05rem" }}>
+              {order.customer?.name || "Ordine #" + id}
+            </span>
+            {order.orderNumber && (
+              <span style={{ fontSize: "0.75rem", color: "var(--ink-3)", fontWeight: 600 }}>
+                Ordine N. {order.orderNumber}
+              </span>
+            )}
+          </div>
           <span className={`badge ${isDelivery ? "badge-blue" : "badge-orange"}`}>
             {isDelivery ? "Consegna" : "Ritiro"}
           </span>

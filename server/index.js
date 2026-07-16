@@ -426,6 +426,23 @@ app.post("/api/orders", requireAuth("admin","operatore"), async (req, res) => {
     let order = req.body || {};
     order = ensureOrderSignatureUrl(order);
 
+    // Genera numero ordine progressivo per anno (atomico)
+    if (!order.orderNumber) {
+      const year = new Date().getFullYear();
+      // Incrementa il contatore dell'anno in modo atomico
+      await execute(
+        `INSERT INTO order_counters (year, last_number) VALUES (?, 1)
+         ON DUPLICATE KEY UPDATE last_number = last_number + 1`,
+        [year]
+      );
+      const [rows] = await query(
+        "SELECT last_number FROM order_counters WHERE year = ?",
+        [year]
+      );
+      const progressivo = rows[0]?.last_number || 1;
+      order.orderNumber = `${year}-${String(progressivo).padStart(4, "0")}`;
+    }
+
     const [result] = await execute(
       "INSERT INTO orders (data) VALUES (?)",
       [JSON.stringify(order)]
@@ -569,7 +586,7 @@ app.get("/api/orders/:id/pdf", requireAuth("admin","operatore"), async (req, res
 
     // Scritta "Scheda Ordine" allineata a destra
     doc.fontSize(10).font("Helvetica").fillColor("#7a8899")
-      .text("Scheda Ordine #" + (order.id || "-"), margin, headerY + 16, {
+      .text("Ordine N. " + (order.orderNumber || order.id || "-"), margin, headerY + 16, {
         width: contentW,
         align: "right",
       });
@@ -1383,25 +1400,16 @@ app.delete("/api/sub-products/:id", requireAuth("admin"), async (req, res) => {
 });
 
 /* =========================
-   SERVE FRONTEND (produzione)
+   START
 ========================= */
-const clientDist = path.join(__dirname, "../client/dist");
-console.log("clientDist path:", clientDist);
-console.log("clientDist exists:", fs.existsSync(clientDist));
-if (fs.existsSync(clientDist)) {
-  app.use(express.static(clientDist));
-  app.get("/{*path}", (req, res) => {
-    if (!req.path.startsWith("/api") && !req.path.startsWith("/uploads")) {
-      res.sendFile(path.join(clientDist, "index.html"));
-    }
-  });
-}
 
 async function start() {
   await testConnection();
   await initDb();
+
   app.listen(PORT, () => {
     console.log("Server avviato su http://localhost:" + PORT);
   });
 }
+
 start();
