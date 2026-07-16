@@ -15,6 +15,7 @@ function emptyItem() {
     variantName: "",
     persons: "",
     weightKg: "",
+    pieces: "",
     notes: "",
     allergenOption: "standard",
   };
@@ -641,6 +642,7 @@ export default function NewOrder() {
   const [invoiceRequested, setInvoiceRequested] = useState(false);
   const [invoiceData, setInvoiceData] = useState({
     clientType: "privato",
+    trayReturn: false,
     ragioneSociale: "",
     partitaIva: "",
     via: "",
@@ -906,6 +908,7 @@ export default function NewOrder() {
           ...it,
           persons: it.persons === "" ? null : Number(it.persons),
           weightGrams: it.weightKg === "" ? null : Math.round(Number(it.weightKg) * 1000),
+          pieces: it.pieces === "" || it.pieces == null ? null : Number(it.pieces),
           productName: product?.name || it.productName || "",
           subProductName: sub?.name || it.subProductName || "",
           variantName: it.variantName || "",
@@ -1064,6 +1067,26 @@ export default function NewOrder() {
                   );
                 })}
               </div>
+
+              {/* Restituzione vassoio - solo per ristorante */}
+              {invoiceData.clientType === "ristorante" && (
+                <label style={{
+                  display: "flex", alignItems: "center", gap: 10,
+                  marginTop: 12, padding: "10px 14px",
+                  background: "var(--surface-2)", borderRadius: "var(--r-sm)",
+                  border: "1.5px solid var(--border)",
+                  textTransform: "none", letterSpacing: 0,
+                  fontSize: "0.92rem", fontWeight: 600, color: "var(--ink-2)",
+                  cursor: "pointer",
+                }}>
+                  <input
+                    type="checkbox"
+                    checked={!!invoiceData.trayReturn}
+                    onChange={e => setInvoiceData(p => ({ ...p, trayReturn: e.target.checked }))}
+                  />
+                  Restituzione vassoio
+                </label>
+              )}
             </div>
 
             <div style={{ display: "grid", gap: "var(--gap)", gridTemplateColumns: "1fr 1fr" }}>
@@ -1371,8 +1394,8 @@ export default function NewOrder() {
                   </label>
                 </div>
 
-                {/* Riga 2: Persone, Peso, Allergeni */}
-                <div style={{ display: "grid", gap: "var(--gap)", gridTemplateColumns: "1fr 1fr 1.5fr", marginTop: "var(--gap)" }}>
+                {/* Riga 2: Persone, Peso, N. pezzi, Allergeni */}
+                <div style={{ display: "grid", gap: "var(--gap)", gridTemplateColumns: "1fr 1fr 1fr 1.5fr", marginTop: "var(--gap)" }}>
                   <label>
                     Persone
                     <input
@@ -1394,6 +1417,18 @@ export default function NewOrder() {
                       disabled={!allowWeight}
                       value={it.weightKg}
                       onChange={(e) => updateItem(idx, { weightKg: e.target.value })}
+                    />
+                  </label>
+
+                  <label>
+                    N. pezzi
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={it.pieces || ""}
+                      onChange={(e) => updateItem(idx, { pieces: e.target.value })}
+                      placeholder="Es. 12"
                     />
                   </label>
 

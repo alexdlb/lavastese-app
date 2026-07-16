@@ -214,6 +214,11 @@ export default function OrderDetail() {
               Acconto € {Number(order.payment.depositAmount || 0).toFixed(2)}
             </span>
           )}
+          {order.invoiceData?.clientType === "ristorante" && order.invoiceData?.trayReturn && (
+            <span className="badge" style={{ background: "#fef9c3", color: "#854d0e", border: "1px solid #fde047" }}>
+              🍽 Restituzione vassoio
+            </span>
+          )}
         </div>
 
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
@@ -355,7 +360,7 @@ export default function OrderDetail() {
                 gap: 12,
                 background: "var(--surface-2)",
               }}>
-                <div style={{ display: "grid", gridTemplateColumns: "2fr 1.5fr 1fr auto", gap: "var(--gap)", alignItems: "end" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "2fr 1.5fr 1fr 1fr auto", gap: "var(--gap)", alignItems: "end" }}>
                   <label>
                     Prodotto
                     <input type="text" value={item.productName || ""} onChange={e => updateItem(index, "productName", e.target.value)} />
@@ -367,6 +372,10 @@ export default function OrderDetail() {
                   <label>
                     Quantità
                     <input type="number" min="1" value={item.quantity ?? 1} onChange={e => updateItem(index, "quantity", e.target.value)} />
+                  </label>
+                  <label>
+                    N. pezzi
+                    <input type="number" min="1" value={item.pieces ?? ""} onChange={e => updateItem(index, "pieces", e.target.value)} placeholder="—" />
                   </label>
                   <button className="btn-danger btn-sm" onClick={() => removeItem(index)} style={{ marginBottom: 0 }}>
                     🗑

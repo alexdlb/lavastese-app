@@ -215,6 +215,11 @@ function OrderCard({ order, onStatusChange, onNavigate }) {
                       {it.persons} pers.
                     </span>
                   ) : null}
+                  {it.pieces ? (
+                    <span style={{ fontWeight: 400, color: "var(--ink-3)", fontSize: "0.73rem", marginLeft: 5 }}>
+                      {it.pieces} pz
+                    </span>
+                  ) : null}
                 </div>
 
                 {/* Allergeni */}
