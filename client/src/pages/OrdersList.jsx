@@ -12,8 +12,12 @@ async function readJsonSafe(res) {
 
 const DAYS_IT = ["Dom", "Lun", "Mar", "Mer", "Gio", "Ven", "Sab"];
 const MONTHS_IT = ["Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"];
-const HOURS = Array.from({ length: 16 }, (_, i) => i + 6); // 06:00 → 21:00
-const HOUR_PX = 64; // altezza di ogni ora in pixel
+const START_HOUR = 5;   // prima ora visibile
+const END_HOUR = 22;    // ultima ora visibile
+const HOURS = Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => i + START_HOUR); // 05:00 → 22:00
+const SLOT_MIN = 15;    // suddivisione ogni 15 minuti
+const SLOT_PX = 22;     // altezza di ogni slot da 15 min (comoda)
+const HOUR_PX = SLOT_PX * (60 / SLOT_MIN); // altezza di un'ora intera = 88px
 
 function toDateKey(date) {
   // Usa l'ora LOCALE, non UTC — altrimenti gli ordini serali/notturni
@@ -48,8 +52,9 @@ function getOrderTop(dt) {
   if (!dt) return null;
   const d = new Date(dt);
   const h = d.getHours() + d.getMinutes() / 60;
-  const offset = h - 6; // 6 = prima ora
-  if (offset < 0 || offset > 15) return null;
+  const offset = h - START_HOUR; // ore trascorse dalla prima ora visibile
+  const totalHours = END_HOUR - START_HOUR;
+  if (offset < 0 || offset > totalHours) return null;
   return offset * HOUR_PX;
 }
 
@@ -226,6 +231,7 @@ function EventCard({ order, onClick, isSelected }) {
         padding: "3px 6px",
         cursor: "pointer",
         marginBottom: 2,
+        minHeight: SLOT_PX * 2 - 2,
         boxShadow: isSelected ? "0 0 0 2px var(--accent)" : "none",
         transition: "box-shadow 0.1s, opacity 0.1s",
         opacity: 1,
@@ -309,7 +315,7 @@ export default function OrdersList() {
   function goNextWeek() { setSelectedDate(d => addDays(d, 7)); }
 
   const nowHour = new Date().getHours() + new Date().getMinutes() / 60;
-  const nowTop  = (nowHour - 6) * HOUR_PX;
+  const nowTop  = (nowHour - START_HOUR) * HOUR_PX;
   const todayKey = toDateKey(today);
 
   return (
@@ -457,11 +463,11 @@ export default function OrdersList() {
                   alignItems: "flex-start",
                   justifyContent: "flex-end",
                   paddingRight: 8,
-                  paddingTop: 4,
-                  fontSize: "0.65rem",
-                  color: "var(--ink-muted)",
-                  fontWeight: 600,
-                  borderTop: "1px solid var(--border)",
+                  paddingTop: 2,
+                  fontSize: "0.68rem",
+                  color: "var(--ink-2)",
+                  fontWeight: 700,
+                  borderTop: "1.5px solid var(--border)",
                 }}>
                   {String(h).padStart(2, "0")}:00
                 </div>
@@ -483,9 +489,14 @@ export default function OrdersList() {
                     background: isToday ? "rgba(37,99,235,0.02)" : "transparent",
                   }}
                 >
-                  {/* Linee ore */}
+                  {/* Linee ore e quarti d'ora */}
                   {HOURS.map(h => (
-                    <div key={h} style={{ height: HOUR_PX, borderTop: "1px solid var(--border)" }} />
+                    <div key={h} style={{ height: HOUR_PX, borderTop: "1.5px solid var(--border)", position: "relative" }}>
+                      {/* Linee dei 15, 30, 45 minuti */}
+                      <div style={{ position: "absolute", top: SLOT_PX, left: 0, right: 0, borderTop: "1px dotted var(--border)" }} />
+                      <div style={{ position: "absolute", top: SLOT_PX * 2, left: 0, right: 0, borderTop: "1px solid var(--border)", opacity: 0.6 }} />
+                      <div style={{ position: "absolute", top: SLOT_PX * 3, left: 0, right: 0, borderTop: "1px dotted var(--border)" }} />
+                    </div>
                   ))}
 
                   {/* Linea ora corrente */}
