@@ -35,7 +35,7 @@ async function readJsonSafe(res) {
 /* =========================
    MODAL CREA ELEMENTO
 ========================= */
-function CreateModal({ type, name, onChangeName, onSave, onClose, saving }) {
+function CreateModal({ type, name, onChangeName, onSave, onClose, saving, productType, onChangeProductType }) {
   return (
     <div style={{
       position: "fixed", inset: 0, zIndex: 1000,
@@ -67,6 +67,31 @@ function CreateModal({ type, name, onChangeName, onSave, onClose, saving }) {
             autoFocus
           />
         </label>
+        {type === "prodotto" && (
+          <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+            {[
+              { v: "dolce",  label: "🍰 Dolce",  bg: "#fce7f3", border: "#ec4899", color: "#9d174d" },
+              { v: "salato", label: "🥖 Salato", bg: "#ffedd5", border: "#f97316", color: "#9a3412" },
+            ].map(o => (
+              <button
+                key={o.v}
+                type="button"
+                onClick={() => onChangeProductType(o.v)}
+                style={{
+                  flex: 1,
+                  fontWeight: 700,
+                  border: productType === o.v ? `2px solid ${o.border}` : "1.5px solid var(--border)",
+                  background: productType === o.v ? o.bg : "transparent",
+                  color: productType === o.v ? o.color : "var(--ink-3)",
+                  boxShadow: "none",
+                  transform: "none",
+                }}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+        )}
         <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
           <button
             className="btn-primary"
@@ -625,6 +650,7 @@ export default function NewOrder() {
   const [modal, setModal] = useState(null); // { type: 'categoria'|'prodotto'|'variante', idx, name }
   const [modalName, setModalName] = useState("");
   const [modalSaving, setModalSaving] = useState(false);
+  const [modalProductType, setModalProductType] = useState("dolce");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -701,6 +727,7 @@ export default function NewOrder() {
   function openModal(type, idx, name) {
     setModal({ type, idx });
     setModalName(name || "");
+    setModalProductType("dolce");
   }
 
   async function saveModal() {
@@ -713,7 +740,7 @@ export default function NewOrder() {
         body = { name: modalName.trim() };
       } else if (modal.type === "prodotto") {
         endpoint = "/api/products";
-        body = { name: modalName.trim() };
+        body = { name: modalName.trim(), productType: modalProductType };
       } else {
         endpoint = "/api/variants";
         body = { name: modalName.trim() };
@@ -973,6 +1000,8 @@ export default function NewOrder() {
           onSave={saveModal}
           onClose={() => { setModal(null); setModalName(""); }}
           saving={modalSaving}
+          productType={modalProductType}
+          onChangeProductType={setModalProductType}
         />
       )}
 
