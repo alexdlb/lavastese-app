@@ -661,6 +661,7 @@ export default function NewOrder() {
     deliveryDateTime: "",
     address: { line1: "", line2: "", city: "", notes: "" },
     deliveryFeeCents: null,
+    deliveryPerson: "",
   });
 
   const [items, setItems] = useState([emptyItem()]);
@@ -952,6 +953,8 @@ export default function NewOrder() {
           address: fulfillment.type === "delivery" ? fulfillment.address : null,
           deliveryFeeCents:
             fulfillment.type === "delivery" ? fulfillment.deliveryFeeCents : null,
+          deliveryPerson:
+            fulfillment.type === "delivery" ? fulfillment.deliveryPerson.trim() : "",
         },
         items: normalizedItems,
         notes,
@@ -1340,6 +1343,16 @@ export default function NewOrder() {
                     ...fulfillment,
                     address: { ...fulfillment.address, city: e.target.value },
                   })
+                }
+              />
+            </label>
+
+            <label style={{ gridColumn: "1 / -1" }}>
+              Chi effettua la consegna
+              <input
+                value={fulfillment.deliveryPerson}
+                onChange={(e) =>
+                  setFulfillment({ ...fulfillment, deliveryPerson: e.target.value })
                 }
               />
             </label>

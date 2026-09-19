@@ -200,6 +200,9 @@ function OrderCard({ order, items, tipo, onStatusChange, onNavigate }) {
 
         <div style={{ fontSize: "0.75rem", color: "var(--ink-3)", marginTop: 3 }}>
           {isDelivery ? "🚗 Consegna" : "🛍️ Ritiro"}
+          {isDelivery && order.fulfillment?.deliveryPerson && (
+            <span style={{ fontWeight: 700, color: "var(--ink-2)" }}> · {order.fulfillment.deliveryPerson}</span>
+          )}
         </div>
 
         {order.acknowledgedBy && (

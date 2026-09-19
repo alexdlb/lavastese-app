@@ -352,6 +352,16 @@ export default function OrderDetail() {
               <option value="delivery">Consegna</option>
             </select>
           </label>
+          {order.fulfillment?.type === "delivery" && (
+            <label style={{ gridColumn: "1 / -1" }}>
+              Chi effettua la consegna
+              <input
+                type="text"
+                value={order.fulfillment?.deliveryPerson || ""}
+                onChange={e => updateFulfillment("deliveryPerson", e.target.value)}
+              />
+            </label>
+          )}
         </div>
         {order.fulfillment?.deliveryDateTime && (
           <div style={{ marginTop: 12, padding: "12px 16px", background: "var(--surface-2)", borderRadius: "var(--r-sm)", fontSize: "0.9rem", color: "var(--ink-2)" }}>
