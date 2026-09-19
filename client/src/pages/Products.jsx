@@ -292,6 +292,7 @@ export default function Products() {
   const [loadingVar, setLoadingVar]           = useState(false);
   const [selectedVar, setSelectedVar]         = useState(null);
   const [editVarName, setEditVarName]         = useState("");
+  const [editVarCream, setEditVarCream]       = useState("");
   const [newVarName, setNewVarName]           = useState("");
 
   const [toast, setToast]                     = useState("");
@@ -387,6 +388,7 @@ export default function Products() {
   function selectVar(v) {
     setSelectedVar(v);
     setEditVarName(v.name || "");
+    setEditVarCream(v.creamGPerKg == null ? "" : String(v.creamGPerKg));
     setVarSearch(v.name || "");
     setVarSuggestions([]);
     setSelectedCat(null);
@@ -396,6 +398,7 @@ export default function Products() {
   function closeVar() {
     setSelectedVar(null);
     setEditVarName("");
+    setEditVarCream("");
     setVarSearch("");
   }
 
@@ -419,12 +422,12 @@ export default function Products() {
     if (!name) return;
     const res = await apiFetch(`/api/variants/${selectedVar.id}`, {
       method: "PATCH", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ name, creamGPerKg: editVarCream.trim() }),
     });
     const data = await readJsonSafe(res);
     if (!res.ok) { alert(data?.error || "Errore"); return; }
     await loadBase();
-    setSelectedVar({ ...selectedVar, name });
+    setSelectedVar({ ...selectedVar, name, creamGPerKg: data.creamGPerKg });
     showToast("Variante salvata");
   }
 
@@ -1084,6 +1087,18 @@ export default function Products() {
                 type="text"
                 value={editVarName}
                 onChange={e => setEditVarName(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && saveVar()}
+              />
+            </label>
+            <label>
+              Crema per kg di torta (grammi)
+              <input
+                type="number"
+                min="0"
+                step="10"
+                placeholder="Vuoto = non conteggiata"
+                value={editVarCream}
+                onChange={e => setEditVarCream(e.target.value)}
                 onKeyDown={e => e.key === "Enter" && saveVar()}
               />
             </label>

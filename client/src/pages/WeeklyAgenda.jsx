@@ -18,6 +18,10 @@ function getStartOfWeek(baseDate = new Date()) {
   return d;
 }
 
+function formatCream(grams) {
+  return grams >= 1000 ? `${(grams / 1000).toFixed(2).replace(".", ",")} kg` : `${Math.round(grams)} g`;
+}
+
 function sameDay(a, b) {
   return a.getFullYear() === b.getFullYear()
     && a.getMonth() === b.getMonth()
@@ -384,6 +388,7 @@ export default function WeeklyAgenda() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [typeByProductId, setTypeByProductId] = useState({});
+  const [creamByVariantId, setCreamByVariantId] = useState({});
 
   async function load() {
     setLoading(true);
@@ -400,6 +405,19 @@ export default function WeeklyAgenda() {
         const pData = await readJsonSafe(pRes);
         if (pRes.ok && Array.isArray(pData)) {
           setTypeByProductId(Object.fromEntries(pData.map(p => [String(p.id), p.productType])));
+        }
+      } catch (e) {
+        console.error(e);
+      }
+
+      // Grammi di crema per kg, per gusto (variante)
+      try {
+        const vRes = await apiFetch("/api/variants?limit=200");
+        const vData = await readJsonSafe(vRes);
+        if (vRes.ok && Array.isArray(vData)) {
+          setCreamByVariantId(Object.fromEntries(
+            vData.filter(v => v.creamGPerKg > 0).map(v => [String(v.id), { name: v.name, gPerKg: v.creamGPerKg }])
+          ));
         }
       } catch (e) {
         console.error(e);
@@ -452,6 +470,23 @@ export default function WeeklyAgenda() {
     });
   }, [orders, weekDays]);
 
+  // Crema necessaria per un giorno: kg di torta x g/kg del gusto, raggruppata per gusto
+  const creamForOrders = useCallback((dayOrders) => {
+    const perGusto = new Map();
+    let totalGrams = 0;
+    for (const o of dayOrders) {
+      for (const it of o.items || []) {
+        const cream = creamByVariantId[String(it.variantId)];
+        if (!cream || !it.weightGrams) continue;
+        if (typeByProductId[String(it.productId)] === "salato") continue;
+        const grams = (it.weightGrams / 1000) * cream.gPerKg;
+        perGusto.set(cream.name, (perGusto.get(cream.name) || 0) + grams);
+        totalGrams += grams;
+      }
+    }
+    return { totalGrams, perGusto: Array.from(perGusto.entries()) };
+  }, [creamByVariantId, typeByProductId]);
+
   // Righe di un ordine appartenenti a un tipo (dolce/salato)
   const itemsOfType = useCallback((order, tipo) =>
     (order.items || []).filter(it =>
@@ -496,6 +531,7 @@ export default function WeeklyAgenda() {
           {grouped.map(({ day, items }) => {
             const isToday = sameDay(day, today);
             const isPast = day < today && !isToday;
+            const cream = creamForOrders(items);
 
             // Contatori per stato (solo se ci sono ordini)
             const countPerStato = Object.fromEntries(
@@ -586,6 +622,21 @@ export default function WeeklyAgenda() {
                             </div>
                           ) : null
                         )}
+                        {cream.totalGrams > 0 && (
+                          <span
+                            title={cream.perGusto.map(([n, g]) => `${n}: ${formatCream(g)}`).join("\n")}
+                            style={{
+                              background: "#fef3c7",
+                              color: "#92400e",
+                              fontSize: "0.75rem",
+                              fontWeight: 700,
+                              padding: "3px 11px",
+                              borderRadius: "var(--r-full)",
+                            }}
+                          >
+                            🍮 Crema: {formatCream(cream.totalGrams)}
+                          </span>
+                        )}
                         <span style={{
                           background: isToday ? "rgba(255,255,255,0.22)" : "var(--ink)",
                           color: "#fff",
@@ -621,6 +672,11 @@ export default function WeeklyAgenda() {
                             textTransform: "uppercase",
                           }}>
                             {t.icon} {t.label} · {rows.length}
+                            {tipo === "dolce" && cream.perGusto.length > 0 && (
+                              <span style={{ marginLeft: 14, fontWeight: 600, textTransform: "none", letterSpacing: 0 }}>
+                                🍮 {cream.perGusto.map(([n, g]) => `${n}: ${formatCream(g)}`).join(" · ")}
+                              </span>
+                            )}
                           </div>
                           <div style={{
                             padding: "16px 20px",

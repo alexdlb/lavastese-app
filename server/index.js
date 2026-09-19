@@ -802,7 +802,7 @@ app.get("/api/variants", requireAuth("admin","operatore"), async (req, res) => {
     let where = "";
     if (search) { where = "WHERE name LIKE ?"; params.push(`${search}%`); }
     const [rows] = await query(
-      `SELECT id, name FROM variants ${where} ORDER BY name ASC LIMIT ?`,
+      `SELECT id, name, cream_g_per_kg AS creamGPerKg FROM variants ${where} ORDER BY name ASC LIMIT ?`,
       [...params, limit]
     );
     res.json(rows);
@@ -830,8 +830,14 @@ app.patch("/api/variants/:id", requireAuth("admin"), async (req, res) => {
     if (!exists.length) return res.status(404).json({ error: "Variante non trovata" });
     const [dup] = await query("SELECT id FROM variants WHERE LOWER(name)=LOWER(?) AND id<>? LIMIT 1", [name, id]);
     if (dup.length) return res.status(409).json({ error: "Nome già in uso" });
-    await execute("UPDATE variants SET name=? WHERE id=?", [name, id]);
-    res.json({ id, name });
+    const creamRaw = req.body?.creamGPerKg;
+    const creamGPerKg =
+      creamRaw === "" || creamRaw == null ? null : Number(creamRaw);
+    if (creamGPerKg !== null && (!Number.isInteger(creamGPerKg) || creamGPerKg < 0 || creamGPerKg > 10000)) {
+      return res.status(400).json({ error: "Grammi di crema per kg non validi" });
+    }
+    await execute("UPDATE variants SET name=?, cream_g_per_kg=? WHERE id=?", [name, creamGPerKg, id]);
+    res.json({ id, name, creamGPerKg });
   } catch (err) { console.error(err); res.status(500).json({ error: "Errore modifica variante" }); }
 });
 

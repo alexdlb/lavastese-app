@@ -287,6 +287,12 @@ export async function initDb() {
     )
   `);
 
+  await ensureColumn(
+    "variants",
+    "cream_g_per_kg",
+    "cream_g_per_kg INT NULL"
+  );
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS order_counters (
       year INT PRIMARY KEY,
