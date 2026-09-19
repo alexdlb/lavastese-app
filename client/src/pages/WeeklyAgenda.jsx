@@ -495,6 +495,8 @@ export default function WeeklyAgenda() {
 
   const today = new Date();
   const totalThisWeek = grouped.reduce((acc, { items }) => acc + items.length, 0);
+  const todayItems = grouped.find(g => sameDay(g.day, today))?.items || [];
+  const creamToday = creamForOrders(todayItems);
 
   return (
     <div style={{ display: "grid", gap: "var(--gap-lg)" }}>
@@ -521,6 +523,50 @@ export default function WeeklyAgenda() {
           <button onClick={load} disabled={loading}>🔄 Aggiorna</button>
         </div>
       </div>
+
+      {/* CREMA DA PREPARARE OGGI */}
+      {!loading && (
+        <div style={{
+          background: "#fffbeb",
+          border: "2px solid #fde68a",
+          borderRadius: "var(--r-lg)",
+          padding: "14px 20px",
+          display: "flex",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: "10px 24px",
+        }}>
+          <div>
+            <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "#92400e", textTransform: "uppercase", letterSpacing: "0.07em" }}>
+              🍮 Crema da preparare oggi
+            </div>
+            <div style={{ fontFamily: "var(--font-title)", fontSize: "1.8rem", color: "#92400e", lineHeight: 1.1, marginTop: 2 }}>
+              {creamToday.totalGrams > 0 ? formatCream(creamToday.totalGrams) : "—"}
+            </div>
+          </div>
+          {creamToday.perGusto.length > 0 ? (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {creamToday.perGusto.map(([nome, g]) => (
+                <span key={nome} style={{
+                  background: "#fef3c7",
+                  color: "#92400e",
+                  border: "1px solid #fde68a",
+                  borderRadius: "var(--r-full)",
+                  padding: "4px 12px",
+                  fontSize: "0.8rem",
+                  fontWeight: 600,
+                }}>
+                  {nome}: <strong>{formatCream(g)}</strong>
+                </span>
+              ))}
+            </div>
+          ) : (
+            <span style={{ fontSize: "0.85rem", color: "#92400e", opacity: 0.75 }}>
+              Nessuna crema da preparare oggi
+            </span>
+          )}
+        </div>
+      )}
 
       {error && <div className="error-box">{error}</div>}
 
