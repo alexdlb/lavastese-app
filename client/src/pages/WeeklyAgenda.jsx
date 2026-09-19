@@ -1,4 +1,4 @@
-import { apiFetch } from "../utils/auth.js";
+import { apiFetch, getUser } from "../utils/auth.js";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -380,6 +380,90 @@ function OrderCard({ order, items, tipo, onStatusChange, onNavigate }) {
 }
 
 /* ================================
+   BANNER NUOVI ORDINI DI OGGI
+================================ */
+function NewOrdersBanner({ orders, onAck }) {
+  const [ackingId, setAckingId] = useState(null);
+
+  if (orders.length === 0) return null;
+
+  async function ack(order) {
+    setAckingId(order.id);
+    await onAck(order);
+    setAckingId(null);
+  }
+
+  return (
+    <div style={{
+      background: "#fef2f2",
+      border: "2px solid #ef4444",
+      borderRadius: "var(--r-lg)",
+      overflow: "hidden",
+      boxShadow: "0 4px 16px rgba(239,68,68,0.18)",
+    }}>
+      <div style={{
+        background: "#ef4444",
+        color: "#fff",
+        padding: "9px 20px",
+        fontWeight: 800,
+        fontSize: "0.85rem",
+        letterSpacing: "0.07em",
+        textTransform: "uppercase",
+      }}>
+        🔔 {orders.length === 1 ? "Nuovo ordine per oggi" : `${orders.length} nuovi ordini per oggi`}
+      </div>
+      <div style={{ display: "grid" }}>
+        {orders.map((o, i) => (
+          <div key={o.id} style={{
+            display: "flex",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: "8px 18px",
+            padding: "12px 20px",
+            borderTop: i === 0 ? "none" : "1px solid #fecaca",
+          }}>
+            <span style={{ fontWeight: 800, fontSize: "1.2rem", color: "#b91c1c", fontVariantNumeric: "tabular-nums" }}>
+              {formatHour(o.fulfillment?.deliveryDateTime)}
+            </span>
+            <div style={{ flex: 1, minWidth: 200 }}>
+              <div style={{ fontWeight: 700, color: "var(--ink)" }}>
+                {o.customer?.name || "Cliente"}
+                <span style={{ fontWeight: 500, color: "var(--ink-3)", fontSize: "0.8rem", marginLeft: 8 }}>
+                  {o.fulfillment?.type === "delivery" ? "🚗 Consegna" : "🛍️ Ritiro"}
+                </span>
+              </div>
+              <div style={{ fontSize: "0.82rem", color: "var(--ink-2)", marginTop: 2 }}>
+                {(o.items || []).map(it =>
+                  [it.productName, it.variantName, it.weightGrams ? `${(it.weightGrams / 1000).toFixed(1)} kg` : ""]
+                    .filter(Boolean).join(" ")
+                ).join(" · ") || "—"}
+              </div>
+            </div>
+            <button
+              onClick={() => ack(o)}
+              disabled={ackingId === o.id}
+              style={{
+                background: "#ef4444",
+                color: "#fff",
+                border: "none",
+                borderRadius: "var(--r-sm)",
+                minHeight: "var(--touch)",
+                padding: "0 34px",
+                fontWeight: 800,
+                fontSize: "1rem",
+                boxShadow: "0 4px 12px rgba(239,68,68,0.3)",
+              }}
+            >
+              {ackingId === o.id ? "..." : "OK"}
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ================================
    COMPONENTE PRINCIPALE
 ================================ */
 export default function WeeklyAgenda() {
@@ -444,6 +528,27 @@ export default function WeeklyAgenda() {
     ));
   }, []);
 
+  // Presa visione di un nuovo ordine: salva chi e quando lo ha confermato
+  const handleAck = useCallback(async (order) => {
+    const acknowledgedBy = getUser()?.username || "";
+    const acknowledgedAt = new Date().toISOString();
+    try {
+      const res = await apiFetch(`/api/orders/${order.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...order, acknowledgedAt, acknowledgedBy }),
+      });
+      const data = await readJsonSafe(res);
+      if (!res.ok) throw new Error(data?.error || "Errore conferma ordine");
+      setOrders(prev => prev.map(o =>
+        o.id === order.id ? { ...o, acknowledgedAt, acknowledgedBy } : o
+      ));
+    } catch (err) {
+      console.error(err);
+      alert(err.message || "Errore conferma ordine");
+    }
+  }, []);
+
   const weekDays = useMemo(() => {
     const start = getStartOfWeek(new Date());
     return Array.from({ length: 7 }, (_, i) => {
@@ -495,6 +600,15 @@ export default function WeeklyAgenda() {
 
   const today = new Date();
   const totalThisWeek = grouped.reduce((acc, { items }) => acc + items.length, 0);
+  // Nuovi = creati con la data di creazione, non ancora confermati, consegna oggi
+  const newOrdersToday = orders
+    .filter(o =>
+      o.createdAt && !o.acknowledgedAt && o.fulfillment?.deliveryDateTime &&
+      sameDay(new Date(o.fulfillment.deliveryDateTime), today)
+    )
+    .sort((a, b) =>
+      new Date(a.fulfillment.deliveryDateTime).getTime() - new Date(b.fulfillment.deliveryDateTime).getTime()
+    );
   const todayItems = grouped.find(g => sameDay(g.day, today))?.items || [];
   const creamToday = creamForOrders(todayItems);
 
@@ -523,6 +637,9 @@ export default function WeeklyAgenda() {
           <button onClick={load} disabled={loading}>🔄 Aggiorna</button>
         </div>
       </div>
+
+      {/* BANNER NUOVI ORDINI DI OGGI */}
+      {!loading && <NewOrdersBanner orders={newOrdersToday} onAck={handleAck} />}
 
       {/* CREMA DA PREPARARE OGGI */}
       {!loading && (

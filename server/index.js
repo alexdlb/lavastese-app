@@ -425,6 +425,7 @@ app.post("/api/orders", requireAuth("admin","operatore"), async (req, res) => {
   try {
     let order = req.body || {};
     order = ensureOrderSignatureUrl(order);
+    order.createdAt = new Date().toISOString();
 
     // Genera numero ordine progressivo per anno (atomico)
     if (!order.orderNumber) {
