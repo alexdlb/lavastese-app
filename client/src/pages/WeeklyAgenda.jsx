@@ -202,6 +202,22 @@ function OrderCard({ order, items, tipo, onStatusChange, onNavigate }) {
           {isDelivery ? "🚗 Consegna" : "🛍️ Ritiro"}
         </div>
 
+        {order.acknowledgedBy && (
+          <div style={{
+            marginTop: 5,
+            display: "inline-block",
+            background: "#dcfce7",
+            color: "#14532d",
+            border: "1px solid #86efac",
+            borderRadius: 4,
+            padding: "1px 7px",
+            fontSize: "0.7rem",
+            fontWeight: 700,
+          }}>
+            ✓ In carico a {order.acknowledgedBy}
+          </div>
+        )}
+
         <div style={{ marginTop: 8, display: "grid", gap: 6 }}>
           {items.map((it, idx) => {
             const hasAllergen = it.allergenOption && it.allergenOption !== "standard";

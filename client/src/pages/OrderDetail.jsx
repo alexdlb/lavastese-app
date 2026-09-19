@@ -313,6 +313,29 @@ export default function OrderDetail() {
             <span style={{ fontWeight: 700, color: "var(--ink)" }}>{order.operatore}</span>
           </div>
         )}
+        {order.acknowledgedBy && (
+          <div style={{
+            marginTop: 12,
+            marginLeft: order.operatore ? 10 : 0,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "8px 14px",
+            background: "#f0fdf4",
+            border: "1.5px solid #86efac",
+            borderRadius: "var(--r-sm)",
+            fontSize: "0.88rem",
+            color: "#14532d",
+          }}>
+            <span style={{ fontWeight: 600 }}>✓ Preso in carico da:</span>
+            <span style={{ fontWeight: 700 }}>{order.acknowledgedBy}</span>
+            {order.acknowledgedAt && (
+              <span style={{ opacity: 0.75 }}>
+                ({new Date(order.acknowledgedAt).toLocaleString("it-IT", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })})
+              </span>
+            )}
+          </div>
+        )}
       </SectionCard>
 
       {/* CONSEGNA */}
