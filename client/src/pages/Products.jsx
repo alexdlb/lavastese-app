@@ -692,12 +692,15 @@ export default function Products() {
               <option value="">Senza cat.</option>
               {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
+          </div>
+          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
             <TypeToggle value={newProdType} onChange={setNewProdType} />
             <button
               onClick={createProd}
               disabled={!newProdName.trim()}
               style={{
                 flexShrink: 0,
+                marginLeft: "auto",
                 background: "var(--accent)", color: "#fff",
                 border: "none", borderRadius: "var(--r-sm)",
                 padding: "0 20px", fontWeight: 700,
