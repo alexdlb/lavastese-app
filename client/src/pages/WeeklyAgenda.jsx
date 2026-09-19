@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { createPortal } from "react-dom";
 import { printOrder } from "../utils/print.js";
+import { PRODUCT_TYPES } from "../utils/productTypes.js";
 
 async function readJsonSafe(res) {
   const text = await res.text();
@@ -22,6 +23,14 @@ function getStartOfWeek(baseDate = new Date()) {
 
 function formatCream(grams) {
   return grams >= 1000 ? `${(grams / 1000).toFixed(2).replace(".", ",")} kg` : `${Math.round(grams)} g`;
+}
+
+function formatCreamBreakdown(perGusto, separator) {
+  return perGusto.map(([nome, g]) => `${nome}: ${formatCream(g)}`).join(separator);
+}
+
+function fulfillmentLabel(order) {
+  return order.fulfillment?.type === "delivery" ? "🚗 Consegna" : "🛍️ Ritiro";
 }
 
 function sameDay(a, b) {
@@ -64,28 +73,6 @@ const STATI = {
     headerBg: "#dcfce7",
     headerColor: "#14532d",
     dot: "#22c55e",
-  },
-};
-
-/* ================================
-   TIPI PRODOTTO (dolce / salato)
-================================ */
-const TIPI = {
-  dolce: {
-    label: "Dolce",
-    icon: "🍰",
-    accent: "#ec4899",
-    bg: "#fdf2f8",
-    headerBg: "#fce7f3",
-    color: "#9d174d",
-  },
-  salato: {
-    label: "Salato",
-    icon: "🥖",
-    accent: "#f97316",
-    bg: "#fff7ed",
-    headerBg: "#ffedd5",
-    color: "#9a3412",
   },
 };
 
@@ -141,7 +128,7 @@ function OrderCard({ order, items, tipo, onStatusChange, onNavigate }) {
       width: 220,
       flexShrink: 0,
       border: `2px solid ${stile.border}`,
-      borderTop: `4px solid ${TIPI[tipo].accent}`,
+      borderTop: `4px solid ${PRODUCT_TYPES[tipo].accent}`,
       borderRadius: "var(--r-md)",
       background: stile.bg,
       display: "flex",
@@ -217,7 +204,7 @@ function OrderCard({ order, items, tipo, onStatusChange, onNavigate }) {
         </div>
 
         <div style={{ fontSize: "0.75rem", color: "var(--ink-3)", marginTop: 3 }}>
-          {isDelivery ? "🚗 Consegna" : "🛍️ Ritiro"}
+          {fulfillmentLabel(order)}
           {isDelivery && order.fulfillment?.deliveryPerson && (
             <span style={{ fontWeight: 700, color: "var(--ink-2)" }}> · {order.fulfillment.deliveryPerson}</span>
           )}
@@ -511,7 +498,7 @@ function NewOrdersBanner({ orders, onAck }) {
               <div style={{ fontWeight: 700, color: "var(--ink)" }}>
                 {o.customer?.name || "Cliente"}
                 <span style={{ fontWeight: 500, color: "var(--ink-3)", fontSize: "0.8rem", marginLeft: 8 }}>
-                  {o.fulfillment?.type === "delivery" ? "🚗 Consegna" : "🛍️ Ritiro"}
+                  {fulfillmentLabel(o)}
                 </span>
               </div>
               <div style={{ fontSize: "0.82rem", color: "var(--ink-2)", marginTop: 2 }}>
@@ -564,30 +551,6 @@ export default function WeeklyAgenda() {
       const data = await readJsonSafe(res);
       if (!res.ok) throw new Error(data?.error || "Errore caricamento ordini");
       setOrders(Array.isArray(data) ? data : []);
-
-      // Tipo prodotto (dolce/salato): se non disponibile, tutto "dolce"
-      try {
-        const pRes = await apiFetch("/api/products?limit=200");
-        const pData = await readJsonSafe(pRes);
-        if (pRes.ok && Array.isArray(pData)) {
-          setTypeByProductId(Object.fromEntries(pData.map(p => [String(p.id), p.productType])));
-        }
-      } catch (e) {
-        console.error(e);
-      }
-
-      // Grammi di crema per kg, per gusto (variante)
-      try {
-        const vRes = await apiFetch("/api/variants?limit=200");
-        const vData = await readJsonSafe(vRes);
-        if (vRes.ok && Array.isArray(vData)) {
-          setCreamByVariantId(Object.fromEntries(
-            vData.filter(v => v.creamGPerKg > 0).map(v => [String(v.id), { name: v.name, gPerKg: v.creamGPerKg }])
-          ));
-        }
-      } catch (e) {
-        console.error(e);
-      }
     } catch (err) {
       console.error(err);
       setError(err.message || "Errore caricamento agenda");
@@ -597,7 +560,29 @@ export default function WeeklyAgenda() {
     }
   }
 
+  // Tipo prodotto (dolce/salato) e crema per gusto: cambiano raramente, non servono nel polling
+  async function loadCatalog() {
+    try {
+      const [pRes, vRes] = await Promise.all([
+        apiFetch("/api/products?limit=200"),
+        apiFetch("/api/variants?limit=200"),
+      ]);
+      const [pData, vData] = await Promise.all([readJsonSafe(pRes), readJsonSafe(vRes)]);
+      if (pRes.ok && Array.isArray(pData)) {
+        setTypeByProductId(Object.fromEntries(pData.map(p => [String(p.id), p.productType])));
+      }
+      if (vRes.ok && Array.isArray(vData)) {
+        setCreamByVariantId(Object.fromEntries(
+          vData.filter(v => v.creamGPerKg > 0).map(v => [String(v.id), { name: v.name, gPerKg: v.creamGPerKg }])
+        ));
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
   useEffect(() => {
+    loadCatalog();
     load();
     const interval = setInterval(load, 30000);
     return () => clearInterval(interval);
@@ -657,6 +642,11 @@ export default function WeeklyAgenda() {
     });
   }, [orders, weekDays]);
 
+  const isSalato = useCallback(
+    (item) => typeByProductId[String(item.productId)] === "salato",
+    [typeByProductId]
+  );
+
   // Crema necessaria per un giorno: kg di torta x g/kg del gusto, raggruppata per gusto
   const creamForOrders = useCallback((dayOrders) => {
     const perGusto = new Map();
@@ -665,20 +655,19 @@ export default function WeeklyAgenda() {
       for (const it of o.items || []) {
         const cream = creamByVariantId[String(it.variantId)];
         if (!cream || !it.weightGrams) continue;
-        if (typeByProductId[String(it.productId)] === "salato") continue;
+        if (isSalato(it)) continue;
         const grams = (it.weightGrams / 1000) * cream.gPerKg;
         perGusto.set(cream.name, (perGusto.get(cream.name) || 0) + grams);
         totalGrams += grams;
       }
     }
     return { totalGrams, perGusto: Array.from(perGusto.entries()) };
-  }, [creamByVariantId, typeByProductId]);
+  }, [creamByVariantId, isSalato]);
 
   // Righe di un ordine appartenenti a un tipo (dolce/salato)
   const itemsOfType = useCallback((order, tipo) =>
-    (order.items || []).filter(it =>
-      (typeByProductId[String(it.productId)] === "salato" ? "salato" : "dolce") === tipo
-    ), [typeByProductId]);
+    (order.items || []).filter(it => (isSalato(it) ? "salato" : "dolce") === tipo),
+    [isSalato]);
 
   const today = new Date();
   const totalThisWeek = grouped.reduce((acc, { items }) => acc + items.length, 0);
@@ -691,8 +680,11 @@ export default function WeeklyAgenda() {
     .sort((a, b) =>
       new Date(a.fulfillment.deliveryDateTime).getTime() - new Date(b.fulfillment.deliveryDateTime).getTime()
     );
-  const todayItems = grouped.find(g => sameDay(g.day, today))?.items || [];
-  const creamToday = creamForOrders(todayItems);
+  const creamByDay = useMemo(
+    () => grouped.map(({ items }) => creamForOrders(items)),
+    [grouped, creamForOrders]
+  );
+  const creamToday = creamByDay[grouped.findIndex(g => sameDay(g.day, today))] || { totalGrams: 0, perGusto: [] };
 
   return (
     <div style={{ display: "grid", gap: "var(--gap-lg)" }}>
@@ -716,7 +708,7 @@ export default function WeeklyAgenda() {
               </div>
             ))}
           </div>
-          <button onClick={load} disabled={loading}>🔄 Aggiorna</button>
+          <button onClick={() => { load(); loadCatalog(); }} disabled={loading}>🔄 Aggiorna</button>
         </div>
       </div>
 
@@ -773,10 +765,10 @@ export default function WeeklyAgenda() {
         <div className="loading-text">Caricamento agenda...</div>
       ) : (
         <div style={{ display: "grid", gap: 10 }}>
-          {grouped.map(({ day, items }) => {
+          {grouped.map(({ day, items }, dayIdx) => {
             const isToday = sameDay(day, today);
             const isPast = day < today && !isToday;
-            const cream = creamForOrders(items);
+            const cream = creamByDay[dayIdx];
 
             // Contatori per stato (solo se ci sono ordini)
             const countPerStato = Object.fromEntries(
@@ -869,7 +861,7 @@ export default function WeeklyAgenda() {
                         )}
                         {cream.totalGrams > 0 && (
                           <span
-                            title={cream.perGusto.map(([n, g]) => `${n}: ${formatCream(g)}`).join("\n")}
+                            title={formatCreamBreakdown(cream.perGusto, "\n")}
                             style={{
                               background: "#fef3c7",
                               color: "#92400e",
@@ -900,7 +892,7 @@ export default function WeeklyAgenda() {
                 {/* ORDINI IN ORIZZONTALE — sezioni Dolce / Salato */}
                 {items.length > 0 && (
                   <div style={{ display: "grid" }}>
-                    {Object.entries(TIPI).map(([tipo, t]) => {
+                    {Object.entries(PRODUCT_TYPES).map(([tipo, t]) => {
                       const rows = items
                         .map(o => ({ order: o, lines: itemsOfType(o, tipo) }))
                         .filter(r => r.lines.length > 0);
@@ -919,7 +911,7 @@ export default function WeeklyAgenda() {
                             {t.icon} {t.label} · {rows.length}
                             {tipo === "dolce" && cream.perGusto.length > 0 && (
                               <span style={{ marginLeft: 14, fontWeight: 600, textTransform: "none", letterSpacing: 0 }}>
-                                🍮 {cream.perGusto.map(([n, g]) => `${n}: ${formatCream(g)}`).join(" · ")}
+                                🍮 {formatCreamBreakdown(cream.perGusto, " · ")}
                               </span>
                             )}
                           </div>

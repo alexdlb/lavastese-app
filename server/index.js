@@ -21,6 +21,7 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const PRODUCT_TYPES = ["dolce", "salato"];
 
 app.use(cors());
 app.use(express.json({ limit: "20mb" }));
@@ -1147,7 +1148,7 @@ app.post("/api/products", requireAuth("admin"), async (req, res) => {
     }
 
     const productType = String(req.body?.productType || "dolce").toLowerCase();
-    if (!["dolce", "salato"].includes(productType)) {
+    if (!PRODUCT_TYPES.includes(productType)) {
       return res.status(400).json({ error: "Tipo prodotto non valido" });
     }
 
@@ -1243,7 +1244,7 @@ app.patch("/api/products/:id", requireAuth("admin"), async (req, res) => {
       req.body?.productType == null
         ? null
         : String(req.body.productType).toLowerCase();
-    if (productType !== null && !["dolce", "salato"].includes(productType)) {
+    if (productType !== null && !PRODUCT_TYPES.includes(productType)) {
       return res.status(400).json({ error: "Tipo prodotto non valido" });
     }
 

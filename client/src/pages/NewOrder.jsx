@@ -1,4 +1,6 @@
 import { apiFetch, getUser } from "../utils/auth.js";
+import ProductTypeToggle from "../components/ProductTypeToggle.jsx";
+import { DEFAULT_PRODUCT_TYPE } from "../utils/productTypes.js";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -68,28 +70,8 @@ function CreateModal({ type, name, onChangeName, onSave, onClose, saving, produc
           />
         </label>
         {type === "prodotto" && (
-          <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-            {[
-              { v: "dolce",  label: "🍰 Dolce",  bg: "#fce7f3", border: "#ec4899", color: "#9d174d" },
-              { v: "salato", label: "🥖 Salato", bg: "#ffedd5", border: "#f97316", color: "#9a3412" },
-            ].map(o => (
-              <button
-                key={o.v}
-                type="button"
-                onClick={() => onChangeProductType(o.v)}
-                style={{
-                  flex: 1,
-                  fontWeight: 700,
-                  border: productType === o.v ? `2px solid ${o.border}` : "1.5px solid var(--border)",
-                  background: productType === o.v ? o.bg : "transparent",
-                  color: productType === o.v ? o.color : "var(--ink-3)",
-                  boxShadow: "none",
-                  transform: "none",
-                }}
-              >
-                {o.label}
-              </button>
-            ))}
+          <div style={{ marginTop: 12 }}>
+            <ProductTypeToggle fill value={productType} onChange={onChangeProductType} />
           </div>
         )}
         <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
@@ -650,7 +632,7 @@ export default function NewOrder() {
   const [modal, setModal] = useState(null); // { type: 'categoria'|'prodotto'|'variante', idx, name }
   const [modalName, setModalName] = useState("");
   const [modalSaving, setModalSaving] = useState(false);
-  const [modalProductType, setModalProductType] = useState("dolce");
+  const [modalProductType, setModalProductType] = useState(DEFAULT_PRODUCT_TYPE);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -728,7 +710,7 @@ export default function NewOrder() {
   function openModal(type, idx, name) {
     setModal({ type, idx });
     setModalName(name || "");
-    setModalProductType("dolce");
+    setModalProductType(DEFAULT_PRODUCT_TYPE);
   }
 
   async function saveModal() {
