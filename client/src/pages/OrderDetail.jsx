@@ -1,3 +1,4 @@
+import { printOrder } from "../utils/print.js";
 import { apiFetch } from "../utils/auth.js";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -245,6 +246,28 @@ export default function OrderDetail() {
             }}
           >
             PDF
+          </button>
+
+          <button
+            onClick={async () => {
+              try { await printOrder(id); }
+              catch (err) { alert(err.message || "Errore stampa"); }
+            }}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "10px 18px",
+              background: "var(--surface-2)",
+              border: "1.5px solid var(--border)",
+              borderRadius: "var(--r-sm)",
+              color: "var(--ink-2)",
+              fontSize: "0.9rem",
+              fontWeight: 600,
+              minHeight: "var(--touch)",
+            }}
+          >
+            🖨️ Stampa
           </button>
 
           <a

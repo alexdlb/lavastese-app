@@ -1,6 +1,8 @@
 import { apiFetch, getUser } from "../utils/auth.js";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { createPortal } from "react-dom";
+import { printOrder } from "../utils/print.js";
 
 async function readJsonSafe(res) {
   const text = await res.text();
@@ -92,6 +94,8 @@ const TIPI = {
 ================================ */
 function OrderCard({ order, items, tipo, onStatusChange, onNavigate }) {
   const [saving, setSaving] = useState(false);
+  const [askPrint, setAskPrint] = useState(false);
+  const [printing, setPrinting] = useState(false);
 
   const status = order.productionStatus || "attesa";
   const stile = STATI[status] || STATI.attesa;
@@ -110,11 +114,25 @@ function OrderCard({ order, items, tipo, onStatusChange, onNavigate }) {
       const data = await readJsonSafe(res);
       if (!res.ok) throw new Error(data?.error || "Errore aggiornamento stato");
       onStatusChange(order.id, newStatus);
+      if (newStatus === "pronto") setAskPrint(true);
     } catch (err) {
       console.error(err);
       alert(err.message || "Errore aggiornamento stato");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handlePrint() {
+    setPrinting(true);
+    try {
+      await printOrder(order.id);
+      setAskPrint(false);
+    } catch (err) {
+      console.error(err);
+      alert(err.message || "Errore stampa");
+    } finally {
+      setPrinting(false);
     }
   }
 
@@ -394,6 +412,51 @@ function OrderCard({ order, items, tipo, onStatusChange, onNavigate }) {
           🟢 Pronto
         </button>
       </div>
+
+      {askPrint && createPortal(
+        <div
+          style={{
+            position: "fixed", inset: 0, zIndex: 1000,
+            background: "rgba(0,0,0,0.45)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: 24,
+          }}
+          onClick={e => e.target === e.currentTarget && !printing && setAskPrint(false)}
+        >
+          <div style={{
+            background: "var(--surface)",
+            borderRadius: "var(--r-xl)",
+            padding: "28px 32px",
+            maxWidth: 420,
+            width: "100%",
+            boxShadow: "var(--shadow-lg)",
+          }}>
+            <h3 style={{ margin: "0 0 8px", fontFamily: "var(--font-title)" }}>
+              Ordine completato ✓
+            </h3>
+            <p style={{ margin: "0 0 20px", color: "var(--ink-2)" }}>
+              {order.customer?.name || "Cliente"}
+              {order.orderNumber ? ` — ordine ${order.orderNumber}` : ""}
+              <br />
+              Vuoi stampare la comanda?
+            </p>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button
+                className="btn-primary"
+                onClick={handlePrint}
+                disabled={printing}
+                style={{ flex: 1 }}
+              >
+                {printing ? "Preparo la stampa..." : "🖨️ Stampa"}
+              </button>
+              <button onClick={() => setAskPrint(false)} disabled={printing}>
+                No
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }
