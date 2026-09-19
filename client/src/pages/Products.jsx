@@ -164,6 +164,38 @@ function ListItem({ label, sub, badge, selected, onClick }) {
 /* ================================
    EDITOR PANEL LATERALE
 ================================ */
+function TypeToggle({ value, onChange }) {
+  const opts = [
+    { v: "dolce",  label: "🍰 Dolce",  bg: "#fce7f3", border: "#ec4899", color: "#9d174d" },
+    { v: "salato", label: "🥖 Salato", bg: "#ffedd5", border: "#f97316", color: "#9a3412" },
+  ];
+  return (
+    <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+      {opts.map(o => (
+        <button
+          key={o.v}
+          type="button"
+          onClick={() => onChange(o.v)}
+          style={{
+            padding: "0 14px",
+            minHeight: "var(--touch)",
+            fontWeight: 700,
+            fontSize: "0.85rem",
+            borderRadius: "var(--r-sm)",
+            border: value === o.v ? `2px solid ${o.border}` : "1.5px solid var(--border)",
+            background: value === o.v ? o.bg : "transparent",
+            color: value === o.v ? o.color : "var(--ink-3)",
+            boxShadow: "none",
+            transform: "none",
+          }}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function EditorPanel({ icon, title, accentColor = "var(--accent)", accentLight = "var(--accent-light)", onClose, children }) {
   return (
     <div style={{
@@ -245,11 +277,12 @@ export default function Products() {
   const [prodSuggestions, setProdSuggestions] = useState([]);
   const [loadingProd, setLoadingProd]         = useState(false);
   const [selectedProd, setSelectedProd]       = useState(null);
-  const [editProd, setEditProd]               = useState({ name: "" });
+  const [editProd, setEditProd]               = useState({ name: "", productType: "dolce" });
 
   const [newCatName, setNewCatName]           = useState("");
   const [newProdName, setNewProdName]         = useState("");
   const [newProdCatId, setNewProdCatId]       = useState("");
+  const [newProdType, setNewProdType]         = useState("dolce");
   const [newSubName, setNewSubName]           = useState("");
 
   // Varianti globali
@@ -412,7 +445,7 @@ export default function Products() {
     const p = data.find(x => String(x.id) === String(id));
     if (p) {
       setSelectedProd(p);
-      setEditProd({ name: p.name || "" });
+      setEditProd({ name: p.name || "", productType: p.productType || "dolce" });
     }
   }
 
@@ -476,7 +509,7 @@ export default function Products() {
 
   function selectProd(prod) {
     setSelectedProd(prod);
-    setEditProd({ name: prod.name || "" });
+    setEditProd({ name: prod.name || "", productType: prod.productType || "dolce" });
     setProdSearch(prod.name || "");
     setProdSuggestions([]);
     setNewSubName("");
@@ -486,7 +519,7 @@ export default function Products() {
 
   function closeProd() {
     setSelectedProd(null);
-    setEditProd({ name: "" });
+    setEditProd({ name: "", productType: "dolce" });
     setProdSearch("");
     setNewSubName("");
   }
@@ -496,11 +529,12 @@ export default function Products() {
     if (!name) return;
     const res = await apiFetch("/api/products", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ name, productType: newProdType }),
     });
     const data = await readJsonSafe(res);
     if (!res.ok) { alert(data?.error || "Errore"); return; }
     setNewProdName("");
+    setNewProdType("dolce");
     setNewProdCatId("");
     await loadBase();
     showToast("OK Prodotto creato");
@@ -512,7 +546,7 @@ export default function Products() {
     if (!name) return;
     const res = await apiFetch(`/api/products/${selectedProd.id}`, {
       method: "PATCH", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ name, productType: editProd.productType }),
     });
     const data = await readJsonSafe(res);
     if (!res.ok) { alert(data?.error || "Errore"); return; }
@@ -658,6 +692,7 @@ export default function Products() {
               <option value="">Senza cat.</option>
               {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
+            <TypeToggle value={newProdType} onChange={setNewProdType} />
             <button
               onClick={createProd}
               disabled={!newProdName.trim()}
@@ -921,6 +956,14 @@ export default function Products() {
                 onKeyDown={e => e.key === "Enter" && saveProd()}
               />
             </label>
+
+            <div>
+              <div style={{ fontSize: "0.85rem", fontWeight: 600, marginBottom: 6 }}>Tipo prodotto</div>
+              <TypeToggle
+                value={editProd.productType}
+                onChange={t => setEditProd(p => ({ ...p, productType: t }))}
+              />
+            </div>
 
             <div style={{ display: "grid", gap: 8 }}>
               <button

@@ -1062,6 +1062,7 @@ app.get("/api/products", requireAuth("admin","operatore"), async (req, res) => {
           p.status,
           p.allow_persons AS allowPersons,
           p.allow_weight AS allowWeight,
+          p.product_type AS productType,
           p.created_at AS createdAt
         FROM products p
         LEFT JOIN categories c ON c.id = p.category_id
@@ -1138,6 +1139,11 @@ app.post("/api/products", requireAuth("admin"), async (req, res) => {
       return res.status(400).json({ error: "Nome prodotto obbligatorio" });
     }
 
+    const productType = String(req.body?.productType || "dolce").toLowerCase();
+    if (!["dolce", "salato"].includes(productType)) {
+      return res.status(400).json({ error: "Tipo prodotto non valido" });
+    }
+
     let categoryName = null;
 
     if (categoryId != null) {
@@ -1166,11 +1172,12 @@ app.post("/api/products", requireAuth("admin"), async (req, res) => {
           vat_rate,
           status,
           allow_persons,
-          allow_weight
+          allow_weight,
+          product_type
         )
-        VALUES (?, ?, ?, 10, 'active', 1, 1)
+        VALUES (?, ?, ?, 10, 'active', 1, 1, ?)
       `,
-      [name, categoryId, categoryName]
+      [name, categoryId, categoryName, productType]
     );
 
     const [rows] = await query(
@@ -1185,6 +1192,7 @@ app.post("/api/products", requireAuth("admin"), async (req, res) => {
           p.status,
           p.allow_persons AS allowPersons,
           p.allow_weight AS allowWeight,
+          p.product_type AS productType,
           p.created_at AS createdAt
         FROM products p
         LEFT JOIN categories c ON c.id = p.category_id
@@ -1224,6 +1232,14 @@ app.patch("/api/products/:id", requireAuth("admin"), async (req, res) => {
       return res.status(400).json({ error: "Nome prodotto obbligatorio" });
     }
 
+    const productType =
+      req.body?.productType == null
+        ? null
+        : String(req.body.productType).toLowerCase();
+    if (productType !== null && !["dolce", "salato"].includes(productType)) {
+      return res.status(400).json({ error: "Tipo prodotto non valido" });
+    }
+
     const [exists] = await query(
       "SELECT id FROM products WHERE id = ?",
       [productId]
@@ -1258,10 +1274,11 @@ app.patch("/api/products/:id", requireAuth("admin"), async (req, res) => {
         SET
           name = ?,
           category_id = ?,
-          category = ?
+          category = ?,
+          product_type = COALESCE(?, product_type)
         WHERE id = ?
       `,
-      [name, categoryId, categoryName, productId]
+      [name, categoryId, categoryName, productType, productId]
     );
 
     const [productRows] = await query(
@@ -1276,6 +1293,7 @@ app.patch("/api/products/:id", requireAuth("admin"), async (req, res) => {
           p.status,
           p.allow_persons AS allowPersons,
           p.allow_weight AS allowWeight,
+          p.product_type AS productType,
           p.created_at AS createdAt
         FROM products p
         LEFT JOIN categories c ON c.id = p.category_id

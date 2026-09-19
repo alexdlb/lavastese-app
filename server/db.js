@@ -199,6 +199,12 @@ export async function initDb() {
 
   await ensureColumn(
     "products",
+    "product_type",
+    "product_type VARCHAR(10) NOT NULL DEFAULT 'dolce' AFTER allow_weight"
+  );
+
+  await ensureColumn(
+    "products",
     "created_at",
     "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
   );

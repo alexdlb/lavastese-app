@@ -62,9 +62,31 @@ const STATI = {
 };
 
 /* ================================
+   TIPI PRODOTTO (dolce / salato)
+================================ */
+const TIPI = {
+  dolce: {
+    label: "Dolce",
+    icon: "🍰",
+    accent: "#ec4899",
+    bg: "#fdf2f8",
+    headerBg: "#fce7f3",
+    color: "#9d174d",
+  },
+  salato: {
+    label: "Salato",
+    icon: "🥖",
+    accent: "#f97316",
+    bg: "#fff7ed",
+    headerBg: "#ffedd5",
+    color: "#9a3412",
+  },
+};
+
+/* ================================
    CARD SINGOLO ORDINE
 ================================ */
-function OrderCard({ order, onStatusChange, onNavigate }) {
+function OrderCard({ order, items, tipo, onStatusChange, onNavigate }) {
   const [saving, setSaving] = useState(false);
 
   const status = order.productionStatus || "attesa";
@@ -97,6 +119,7 @@ function OrderCard({ order, onStatusChange, onNavigate }) {
       width: 220,
       flexShrink: 0,
       border: `2px solid ${stile.border}`,
+      borderTop: `4px solid ${TIPI[tipo].accent}`,
       borderRadius: "var(--r-md)",
       background: stile.bg,
       display: "flex",
@@ -176,7 +199,7 @@ function OrderCard({ order, onStatusChange, onNavigate }) {
         </div>
 
         <div style={{ marginTop: 8, display: "grid", gap: 6 }}>
-          {(order.items || []).map((it, idx) => {
+          {items.map((it, idx) => {
             const hasAllergen = it.allergenOption && it.allergenOption !== "standard";
             const allergenLabel = hasAllergen
               ? it.allergenOption.replace(/_/g, " ").replace("no ", "No ")
@@ -360,6 +383,7 @@ export default function WeeklyAgenda() {
   const [orders, setOrders] = useState([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [typeByProductId, setTypeByProductId] = useState({});
 
   async function load() {
     setLoading(true);
@@ -369,6 +393,17 @@ export default function WeeklyAgenda() {
       const data = await readJsonSafe(res);
       if (!res.ok) throw new Error(data?.error || "Errore caricamento ordini");
       setOrders(Array.isArray(data) ? data : []);
+
+      // Tipo prodotto (dolce/salato): se non disponibile, tutto "dolce"
+      try {
+        const pRes = await apiFetch("/api/products?limit=200");
+        const pData = await readJsonSafe(pRes);
+        if (pRes.ok && Array.isArray(pData)) {
+          setTypeByProductId(Object.fromEntries(pData.map(p => [String(p.id), p.productType])));
+        }
+      } catch (e) {
+        console.error(e);
+      }
     } catch (err) {
       console.error(err);
       setError(err.message || "Errore caricamento agenda");
@@ -416,6 +451,12 @@ export default function WeeklyAgenda() {
       return { day, items };
     });
   }, [orders, weekDays]);
+
+  // Righe di un ordine appartenenti a un tipo (dolce/salato)
+  const itemsOfType = useCallback((order, tipo) =>
+    (order.items || []).filter(it =>
+      (typeByProductId[String(it.productId)] === "salato" ? "salato" : "dolce") === tipo
+    ), [typeByProductId]);
 
   const today = new Date();
   const totalThisWeek = grouped.reduce((acc, { items }) => acc + items.length, 0);
@@ -560,25 +601,50 @@ export default function WeeklyAgenda() {
                   </div>
                 </div>
 
-                {/* ORDINI IN ORIZZONTALE */}
+                {/* ORDINI IN ORIZZONTALE — sezioni Dolce / Salato */}
                 {items.length > 0 && (
-                  <div style={{
-                    padding: "16px 20px",
-                    display: "flex",
-                    flexDirection: "row",
-                    gap: 12,
-                    overflowX: "auto",
-                    WebkitOverflowScrolling: "touch",
-                    scrollbarWidth: "thin",
-                  }}>
-                    {items.map(o => (
-                      <OrderCard
-                        key={o.id}
-                        order={o}
-                        onStatusChange={handleStatusChange}
-                        onNavigate={id => navigate(`/ordini/${id}`)}
-                      />
-                    ))}
+                  <div style={{ display: "grid" }}>
+                    {Object.entries(TIPI).map(([tipo, t]) => {
+                      const rows = items
+                        .map(o => ({ order: o, lines: itemsOfType(o, tipo) }))
+                        .filter(r => r.lines.length > 0);
+                      if (rows.length === 0) return null;
+                      return (
+                        <div key={tipo} style={{ background: t.bg, borderTop: `3px solid ${t.accent}` }}>
+                          <div style={{
+                            padding: "8px 20px",
+                            background: t.headerBg,
+                            color: t.color,
+                            fontWeight: 800,
+                            fontSize: "0.8rem",
+                            letterSpacing: "0.08em",
+                            textTransform: "uppercase",
+                          }}>
+                            {t.icon} {t.label} · {rows.length}
+                          </div>
+                          <div style={{
+                            padding: "16px 20px",
+                            display: "flex",
+                            flexDirection: "row",
+                            gap: 12,
+                            overflowX: "auto",
+                            WebkitOverflowScrolling: "touch",
+                            scrollbarWidth: "thin",
+                          }}>
+                            {rows.map(({ order, lines }) => (
+                              <OrderCard
+                                key={order.id}
+                                order={order}
+                                items={lines}
+                                tipo={tipo}
+                                onStatusChange={handleStatusChange}
+                                onNavigate={id => navigate(`/ordini/${id}`)}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
