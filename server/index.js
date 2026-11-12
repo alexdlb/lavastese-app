@@ -436,6 +436,12 @@ app.get("/api/orders/:id", requireAuth("admin","operatore"), async (req, res) =>
 app.post("/api/orders", requireAuth("admin","operatore"), async (req, res) => {
   try {
     let order = req.body || {};
+
+    // Data e ora di consegna/ritiro obbligatorie
+    if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(String(order.fulfillment?.deliveryDateTime || ""))) {
+      return res.status(400).json({ error: "Data e ora di consegna obbligatorie" });
+    }
+
     order = ensureOrderSignatureUrl(order);
     order.createdAt = new Date().toISOString();
 

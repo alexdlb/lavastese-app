@@ -356,6 +356,9 @@ function CalendarPicker({ value, onChange }) {
 
   const [viewYear, setViewYear] = useState(parsedDate ? parsedDate.getFullYear() : today.getFullYear());
   const [viewMonth, setViewMonth] = useState(parsedDate ? parsedDate.getMonth() : today.getMonth());
+  // Giorno scelto ma ora non ancora scelta: l'ora è obbligatoria, quindi non si imposta in automatico
+  const [pendingDate, setPendingDate] = useState("");
+  const activeDateStr = selectedDateStr || pendingDate;
 
   function buildDateStr(year, month, day) {
     return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
@@ -426,7 +429,7 @@ function CalendarPicker({ value, onChange }) {
             if (!day) return <div key={`e-${i}`} />;
 
             const dateStr = buildDateStr(viewYear, viewMonth, day);
-            const isSelected = dateStr === selectedDateStr;
+            const isSelected = dateStr === activeDateStr;
             const isToday = dateStr === todayStr;
             const isPast = dateStr < todayStr;
 
@@ -435,7 +438,10 @@ function CalendarPicker({ value, onChange }) {
                 key={dateStr}
                 type="button"
                 disabled={isPast}
-                onClick={() => emitChange(dateStr, selectedTime || "09:00")}
+                onClick={() => {
+                  setPendingDate(dateStr);
+                  emitChange(dateStr, selectedTime);
+                }}
                 style={{
                   padding: "6px 0",
                   borderRadius: 6,
@@ -471,17 +477,17 @@ function CalendarPicker({ value, onChange }) {
               <button
                 key={slot}
                 type="button"
-                disabled={!selectedDateStr}
-                onClick={() => emitChange(selectedDateStr, slot)}
+                disabled={!activeDateStr}
+                onClick={() => emitChange(activeDateStr, slot)}
                 style={{
                   padding: "5px 4px",
                   borderRadius: 6,
                   border: "1px solid",
                   borderColor: isSelected ? "#6366f1" : "#e5e7eb",
                   background: isSelected ? "#6366f1" : "#fff",
-                  color: isSelected ? "#fff" : !selectedDateStr ? "#d1d5db" : "#111827",
+                  color: isSelected ? "#fff" : !activeDateStr ? "#d1d5db" : "#111827",
                   fontSize: 12,
-                  cursor: !selectedDateStr ? "default" : "pointer",
+                  cursor: !activeDateStr ? "default" : "pointer",
                   fontWeight: isSelected ? 700 : 400,
                 }}
               >
@@ -490,9 +496,14 @@ function CalendarPicker({ value, onChange }) {
             );
           })}
         </div>
-        {!selectedDateStr && (
+        {!activeDateStr && (
           <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 6 }}>
             Seleziona prima una data
+          </div>
+        )}
+        {activeDateStr && !selectedTime && (
+          <div style={{ fontSize: 11, color: "#ef4444", marginTop: 6, fontWeight: 600 }}>
+            Seleziona l'orario
           </div>
         )}
       </div>
@@ -516,7 +527,7 @@ function CalendarPicker({ value, onChange }) {
           </div>
           <button
             type="button"
-            onClick={() => onChange("")}
+            onClick={() => { setPendingDate(""); onChange(""); }}
             style={{ marginTop: 6, fontSize: 11, color: "#ef4444", background: "none", border: "none", cursor: "pointer", padding: 0 }}
           >
             × Cancella selezione
@@ -919,6 +930,14 @@ export default function NewOrder() {
 
   async function save() {
     setError("");
+
+    // Data e ora di consegna/ritiro obbligatorie
+    if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(fulfillment.deliveryDateTime || "")) {
+      setError(`Seleziona data e ora di ${fulfillment.type === "pickup" ? "ritiro" : "consegna"}`);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+
     setSaving(true);
 
     try {
