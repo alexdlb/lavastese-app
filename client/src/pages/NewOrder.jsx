@@ -30,7 +30,47 @@ async function readJsonSafe(res) {
   try {
     return JSON.parse(text);
   } catch {
-    throw new Error("Risposta non valida dal server");
+    // Il server (o un proxy davanti) ha risposto con una pagina HTML/testo
+    if (res.status === 413) throw new Error("File troppo grande per il server");
+    if (res.status === 502 || res.status === 503 || res.status === 504) {
+      throw new Error(`Server non raggiungibile (errore ${res.status}), riprova tra poco`);
+    }
+    throw new Error(`Risposta non valida dal server (errore ${res.status})`);
+  }
+}
+
+// Ridimensiona e comprime la foto prima dell'invio: le foto del telefono
+// pesano diversi MB, ridotte a 1600px in JPEG diventano 200-500 KB.
+const PHOTO_MAX_SIDE = 1600;
+const PHOTO_QUALITY = 0.8;
+
+async function compressPhoto(file) {
+  if (!file || !file.type.startsWith("image/")) return file;
+
+  try {
+    const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
+    const scale = Math.min(1, PHOTO_MAX_SIDE / Math.max(bitmap.width, bitmap.height));
+    const width = Math.round(bitmap.width * scale);
+    const height = Math.round(bitmap.height * scale);
+
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#fff"; // sfondo bianco per PNG con trasparenza
+    ctx.fillRect(0, 0, width, height);
+    ctx.drawImage(bitmap, 0, 0, width, height);
+    bitmap.close?.();
+
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", PHOTO_QUALITY));
+    if (!blob || blob.size >= file.size) return file;
+
+    const baseName = (file.name || "foto").replace(/\.[^.]+$/, "");
+    return new File([blob], `${baseName}.jpg`, { type: "image/jpeg" });
+  } catch (err) {
+    // Formato non decodificabile dal browser (es. HEIC su PC): si invia l'originale
+    console.warn("Compressione foto non riuscita, invio l'originale", err);
+    return file;
   }
 }
 
@@ -886,7 +926,8 @@ export default function NewOrder() {
 
       if (photoFile) {
         const formData = new FormData();
-        formData.append("photo", photoFile);
+        const fileToSend = await compressPhoto(photoFile);
+        formData.append("photo", fileToSend, fileToSend.name);
 
         const uploadRes = await apiFetch("/api/upload-order-photo", {
           method: "POST",
@@ -902,6 +943,8 @@ export default function NewOrder() {
 
         uploadedPhotoUrl = uploadData?.photoUrl || "";
         setPhotoUrl(uploadedPhotoUrl);
+        // già caricata: se il salvataggio dell'ordine fallisce, al nuovo tentativo non si ricarica
+        setPhotoFile(null);
       }
 
       const currentSignatureDataUrl = getSignatureDataUrlFromCanvas();

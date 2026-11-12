@@ -49,12 +49,23 @@ const storage = multer.diskStorage({
     }
   },
   filename: (req, file, cb) => {
-    const safeName = String(file.originalname || "file").replace(/\s+/g, "-");
-    cb(null, `${Date.now()}-${safeName}`);
+    // Solo caratteri sicuri: accenti, emoji, apostrofi ecc. nei nomi file creano problemi negli URL
+    const ext = path.extname(String(file.originalname || "")).toLowerCase().replace(/[^.a-z0-9]/g, "") || ".jpg";
+    const base = path.basename(String(file.originalname || "file"), path.extname(String(file.originalname || "")))
+      .normalize("NFD").replace(/[̀-ͯ]/g, "")
+      .replace(/[^A-Za-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "file";
+    cb(null, `${Date.now()}-${base}${ext}`);
   },
 });
 
-const upload = multer({ storage });
+const upload = multer({
+  storage,
+  limits: { fileSize: 15 * 1024 * 1024, files: 1 },
+  fileFilter: (req, file, cb) => {
+    if (String(file.mimetype || "").startsWith("image/")) return cb(null, true);
+    cb(Object.assign(new Error("Il file deve essere un'immagine"), { status: 400 }));
+  },
+});
 
 app.use("/uploads", express.static(uploadsRoot));
 
@@ -1457,6 +1468,14 @@ app.delete("/api/sub-products/:id", requireAuth("admin"), async (req, res) => {
 });
 
 /* =========================
+   API NON TROVATE
+========================= */
+// Le rotte /api inesistenti rispondono in JSON (prima la richiesta restava senza risposta)
+app.use("/api", (req, res) => {
+  res.status(404).json({ error: "Risorsa non trovata" });
+});
+
+/* =========================
    SERVE FRONTEND (produzione)
 ========================= */
 const clientDist = path.join(__dirname, "../client/dist");
@@ -1464,12 +1483,40 @@ console.log("clientDist path:", clientDist);
 console.log("clientDist exists:", fs.existsSync(clientDist));
 if (fs.existsSync(clientDist)) {
   app.use(express.static(clientDist));
-  app.get("/{*path}", (req, res) => {
-    if (!req.path.startsWith("/api") && !req.path.startsWith("/uploads")) {
-      res.sendFile(path.join(clientDist, "index.html"));
-    }
+  app.get("/{*path}", (req, res, next) => {
+    if (req.path.startsWith("/uploads")) return next();
+    res.sendFile(path.join(clientDist, "index.html"));
   });
 }
+
+/* =========================
+   GESTIONE ERRORI
+========================= */
+// Ogni errore non gestito (upload troppo grande, JSON malformato, ecc.) torna come JSON:
+// senza questo Express risponde con una pagina HTML e il client mostra
+// "Risposta non valida dal server".
+app.use((err, req, res, next) => {
+  if (res.headersSent) return next(err);
+
+  let status = err.status || err.statusCode || 500;
+  let message = status < 500 ? err.message : "Errore interno del server";
+
+  if (err instanceof multer.MulterError) {
+    status = err.code === "LIMIT_FILE_SIZE" ? 413 : 400;
+    message = err.code === "LIMIT_FILE_SIZE"
+      ? "Foto troppo grande (massimo 15 MB)"
+      : `Errore caricamento file: ${err.message}`;
+  } else if (err.type === "entity.too.large") {
+    status = 413;
+    message = "Dati dell'ordine troppo grandi";
+  } else if (err.type === "entity.parse.failed") {
+    status = 400;
+    message = "Dati inviati non validi";
+  }
+
+  console.error(`[${req.method} ${req.originalUrl}]`, err);
+  res.status(status).json({ error: message });
+});
 
 /* =========================
    START
